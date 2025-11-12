@@ -20,12 +20,16 @@ pub fn tokenize(source_code: &str) -> Result<Vec<Token>, String> {
     let mut token_list = vec![];
 
     while let Some(&(_, c)) = iter.peek() {
-        let token = match c {
-            _ if c.is_ascii_digit() => eat_number(&mut iter)?, // 0-9で始まるものは数値として扱う
-            _ if c.is_ascii_whitespace() => eat_whitespace(&mut iter)?,
-            _ if c.is_ascii_punctuation() => eat_symbol(&mut iter)?, // ASCIIの記号
-            _ if c.is_alphabetic() => eat_identifier(&mut iter)?, // 日本語などを使用するのでasciiに限定しない
-            _ => return Err(format!("Invalid characters were used: {c}")),
+        let token = if c.is_ascii_digit() {
+            eat_number(&mut iter)? // 0-9で始まるものは数値として扱う
+        } else if c.is_ascii_whitespace() {
+            eat_whitespace(&mut iter)?
+        } else if c.is_ascii_punctuation() {
+            eat_symbol(&mut iter)? // ASCIIの記号
+        } else if c.is_alphabetic() {
+            eat_identifier(&mut iter)? // 日本語などを使用するのでasciiに限定しない
+        } else {
+            return Err(format!("Invalid characters were used: {c}"));
         };
 
         token_list.push(token);
