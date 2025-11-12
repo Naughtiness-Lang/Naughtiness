@@ -101,6 +101,8 @@ fn eat_symbol(iter: &mut Iter) -> Result<Token, String> {
         _ => return Err("Implementation error".to_string()),
     };
 
+    iter.next();
+
     Ok(Token {
         token_kind: TokenKind::Symbol(symbol),
         token_pos: position,
