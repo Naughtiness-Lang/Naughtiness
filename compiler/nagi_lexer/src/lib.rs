@@ -105,7 +105,7 @@ fn eat_symbol(iter: &mut Iter) -> Result<Token, String> {
         '\\' => Symbol::BackSlash,
         '_' => Symbol::Underscore,
         '`' => Symbol::Backtick,
-        _ => return Err("Implementation error".to_string()),
+        _ => unreachable!(),
     };
 
     iter.next();
