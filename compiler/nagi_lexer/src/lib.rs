@@ -19,13 +19,13 @@ pub fn tokenize(source_code: &str) -> Result<Vec<Token>, String> {
     let mut iter = source_code.chars().enumerate().peekable();
     let mut token_list = vec![];
 
-    while let Some((_, c)) = iter.peek() {
+    while let Some(&(_, c)) = iter.peek() {
         let token = match c {
             _ if c.is_ascii_digit() => eat_number(&mut iter)?, // 0-9で始まるものは数値として扱う
             _ if c.is_ascii_whitespace() => eat_whitespace(&mut iter)?,
             _ if c.is_ascii_punctuation() => eat_symbol(&mut iter)?, // ASCIIの記号
             _ if c.is_alphabetic() => eat_identifier(&mut iter)?, // 日本語などを使用するのでasciiに限定しない
-            _ => return Err(format!("Invalid characters were used: {}", *c)),
+            _ => return Err(format!("Invalid characters were used: {c}")),
         };
 
         token_list.push(token);
@@ -35,10 +35,9 @@ pub fn tokenize(source_code: &str) -> Result<Vec<Token>, String> {
 }
 
 fn eat_identifier(iter: &mut Iter) -> Result<Token, String> {
-    let Some((position, _)) = iter.peek() else {
+    let Some(&(position, _)) = iter.peek() else {
         unreachable!();
     };
-    let position = *position;
 
     let code = from_fn(|| iter.next_if(|c| c.1.is_alphabetic()))
         .map(|c| c.1)
@@ -51,10 +50,9 @@ fn eat_identifier(iter: &mut Iter) -> Result<Token, String> {
 }
 
 fn eat_number(iter: &mut Iter) -> Result<Token, String> {
-    let Some((position, _)) = iter.peek() else {
+    let Some(&(position, _)) = iter.peek() else {
         unreachable!();
     };
-    let position = *position;
 
     let code = from_fn(|| iter.next_if(|c| c.1.is_ascii_digit()))
         .map(|c| c.1)
@@ -67,10 +65,9 @@ fn eat_number(iter: &mut Iter) -> Result<Token, String> {
 }
 
 fn eat_symbol(iter: &mut Iter) -> Result<Token, String> {
-    let Some((position, c)) = iter.peek() else {
+    let Some(&(position, c)) = iter.peek() else {
         unreachable!();
     };
-    let position = *position;
 
     let symbol = match c {
         '+' => Symbol::Plus,
@@ -117,10 +114,9 @@ fn eat_symbol(iter: &mut Iter) -> Result<Token, String> {
 }
 
 fn eat_whitespace(iter: &mut Iter) -> Result<Token, String> {
-    let Some((position, _)) = iter.peek() else {
+    let Some(&(position, _)) = iter.peek() else {
         unreachable!();
     };
-    let position = *position;
 
     let code = from_fn(|| iter.next_if(|c| c.1.is_whitespace()))
         .map(|c| c.1)
