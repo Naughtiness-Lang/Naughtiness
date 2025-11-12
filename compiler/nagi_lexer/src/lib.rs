@@ -36,7 +36,7 @@ pub fn tokenize(source_code: &str) -> Result<Vec<Token>, String> {
 
 fn eat_identifier(iter: &mut Iter) -> Result<Token, String> {
     let Some((position, _)) = iter.peek() else {
-        return Err("Implementation error".to_string());
+        unreachable!();
     };
     let position = *position;
 
@@ -52,7 +52,7 @@ fn eat_identifier(iter: &mut Iter) -> Result<Token, String> {
 
 fn eat_number(iter: &mut Iter) -> Result<Token, String> {
     let Some((position, _)) = iter.peek() else {
-        return Err("Implementation error".to_string());
+        unreachable!();
     };
     let position = *position;
 
@@ -68,7 +68,7 @@ fn eat_number(iter: &mut Iter) -> Result<Token, String> {
 
 fn eat_symbol(iter: &mut Iter) -> Result<Token, String> {
     let Some((position, c)) = iter.peek() else {
-        return Err("Implementation error".to_string());
+        unreachable!();
     };
     let position = *position;
 
@@ -118,7 +118,7 @@ fn eat_symbol(iter: &mut Iter) -> Result<Token, String> {
 
 fn eat_whitespace(iter: &mut Iter) -> Result<Token, String> {
     let Some((position, _)) = iter.peek() else {
-        return Err("Implementation error".to_string());
+        unreachable!();
     };
     let position = *position;
 
