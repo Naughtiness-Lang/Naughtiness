@@ -12,6 +12,9 @@ type Iter<'a> = Peekable<Enumerate<Chars<'a>>>;
 // 単純なトークンに切り分け, 切り分けた結果のトークン列を返す
 // 識別子, 数字, 記号, ホワイトスペースの単純なトークンに切り分けるだけなので
 // 浮動小数や_を含む識別子などは別で処理を行う必要がある
+// 作りたい言語の仕様上パーサーを2つ書くのでここで固定のルールにすると,
+// パーサー側で扱いにくくなるため一旦特定の文字の塊だけにして
+// パーサーに渡す前にそのパーサーに適したトークンに変換する
 pub fn tokenize(source_code: &str) -> Result<Vec<Token>, String> {
     let mut iter = source_code.chars().enumerate().peekable();
     let mut token_list = vec![];
