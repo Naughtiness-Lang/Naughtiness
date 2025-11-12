@@ -19,7 +19,7 @@ pub fn tokenize(source_code: &str) -> Result<Vec<Token>, String> {
             _ if c.is_ascii_whitespace() => eat_whitespace(&mut iter)?,
             _ if c.is_ascii_punctuation() => eat_symbol(&mut iter)?,
             _ if c.is_ascii_alphabetic() => eat_identifier(&mut iter)?,
-            _ => panic!("Invalid characters were used: {c}"),
+            _ => return Err(format!("Invalid characters were used: {c}")),
         };
 
         token_list.push(token);
