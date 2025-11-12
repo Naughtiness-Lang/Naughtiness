@@ -10,7 +10,7 @@ pub mod token;
 type Iter<'a> = Peekable<Enumerate<Chars<'a>>>;
 
 // 単純なトークンに切り分け, 切り分けた結果のトークン列を返す
-// 識別子, 数字, 記号, ホワイトスペースの単純なトークンに切り分けるだけなので
+// 識別子, 数字, 記号(1文字), ホワイトスペースの単純なトークンに切り分けるだけなので
 // 浮動小数や_を含む識別子などは別で処理を行う必要がある
 // 作りたい言語の仕様上パーサーを2つ書くのでここで固定のルールにすると,
 // パーサー側で扱いにくくなるため一旦特定の文字の塊だけにして
@@ -22,9 +22,9 @@ pub fn tokenize(source_code: &str) -> Result<Vec<Token>, String> {
     while let Some((_, c)) = iter.peek() {
         let token = match c {
             _ if c.is_ascii_digit() => eat_number(&mut iter)?, // 0-9で始まるものは数値として扱う
-            _ if c.is_ascii_whitespace() => eat_whitespace(&mut iter)?, //
+            _ if c.is_ascii_whitespace() => eat_whitespace(&mut iter)?,
             _ if c.is_ascii_punctuation() => eat_symbol(&mut iter)?, // ASCIIの記号
-            _ if c.is_alphabetic() => eat_identifier(&mut iter)?, // 上記の条件に当てはまらない文字を識別子とする
+            _ if c.is_alphabetic() => eat_identifier(&mut iter)?, // 日本語などを使用するのでasciiに限定しない
             _ => return Err(format!("Invalid characters were used: {}", *c)),
         };
 
