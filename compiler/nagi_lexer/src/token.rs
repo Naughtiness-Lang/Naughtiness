@@ -46,4 +46,5 @@ pub enum Symbol {
     SingleQuotation, // '
     DoubleQuotation, // "
     BackSlash,       // \
+    Backtick,        // `
 }
