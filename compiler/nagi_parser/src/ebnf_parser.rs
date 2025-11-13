@@ -195,22 +195,20 @@ fn parse_quantifier(iter: &mut ParserIterator) -> Result<Quantifier, EBNFParseEr
 
 // Primary ::= Literal | Group | Expansion;
 fn parse_primary(iter: &mut ParserIterator) -> Result<EBNFNode, EBNFParseError> {
-    if let Ok(node) = parse_literal(iter) {
-        return Ok(node);
-    }
+    skip_space(iter);
+    let Some(&(_, c)) = iter.peek() else {
+        return Err(EBNFParseError::UnexpectedEOF);
+    };
 
-    if let Ok(node) = parse_group(iter) {
-        return Ok(node);
+    match c {
+        '"' => parse_literal(iter),
+        '(' => parse_group(iter),
+        _ if c.is_alphabetic() => parse_expansion(iter),
+        _ => Err(EBNFParseError::UnmatchToken {
+            current_token: get_token(iter),
+            position: get_position(iter),
+        }),
     }
-
-    if let Ok(node) = parse_expansion(iter) {
-        return Ok(node);
-    }
-
-    Err(EBNFParseError::UnmatchToken {
-        current_token: get_token(iter),
-        position: get_position(iter),
-    })
 }
 
 // Group ::= "(" Or ")" ;
