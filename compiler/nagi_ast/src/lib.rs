@@ -273,5 +273,5 @@ pub struct Path {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct PathSegment {
     pub ident: String,
-    pub arguments: Option<Types>,
+    pub arguments: Vec<Types>,
 }
