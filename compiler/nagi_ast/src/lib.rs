@@ -12,17 +12,11 @@ pub enum ASTNodeKind {
 
     Visibility(Visibility),
     Statements(Vec<Statement>),
-    Statement(Statement),
     Pattern(Pattern),
-
     StructFields(Vec<StructField>),
-    StructField(StructField),
     EnumItems(Vec<EnumItem>),
-    EnumItem(Option<EnumItem>),
     TupleFields(),
-    TupleField(),
     CallParams(Vec<Expression>),
-    FunctionParam(FunctionParam),
     FunctionParameters(Vec<FunctionParam>),
 
     Field(String),
