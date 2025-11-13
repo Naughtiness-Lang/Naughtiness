@@ -160,7 +160,14 @@ fn parse_quantifier(iter: &mut ParserIterator) -> Result<Quantifier, EBNFParseEr
 
             skip_space(iter);
             if iter.next_if(|t| matches!(t.1, ',')).is_some() {
-                end = parse_integer(iter).ok();
+                skip_space(iter);
+                let Some((_, c)) = iter.peek() else {
+                    return Err(EBNFParseError::UnexpectedEOF);
+                };
+
+                if c.is_ascii_digit() {
+                    end = Some(parse_integer(iter)?);
+                }
             }
 
             skip_space(iter);
