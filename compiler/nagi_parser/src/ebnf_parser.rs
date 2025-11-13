@@ -1,4 +1,3 @@
-use std::f32::consts::E;
 use std::iter::{from_fn, Enumerate};
 use std::{iter::Peekable, str::Chars};
 
