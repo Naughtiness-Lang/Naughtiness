@@ -15,7 +15,6 @@ pub enum ASTNodeKind {
     Pattern(Pattern),
     StructFields(Vec<StructField>),
     EnumItems(Vec<EnumItem>),
-    TupleFields(),
     CallParams(Vec<Expression>),
     FunctionParameters(Vec<FunctionParam>),
 
@@ -264,7 +263,7 @@ pub enum ComparisonOperator {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Pattern {
-    Literal,
+    Literal(Literal),
     Identifier {
         ident: String,
         mutable: bool,
