@@ -114,10 +114,22 @@ fn parse_repeat(iter: &mut ParserIterator) -> Result<EBNFNode, EBNFParseError> {
     if let Ok(quantifier) = parse_quantifier(iter) {
         let node = Box::new(node);
         return Ok(match quantifier {
-            Quantifier::Plus => EBNFNode::Repeat(node, 1, None),
-            Quantifier::Star => EBNFNode::Repeat(node, 0, None),
-            Quantifier::Question => EBNFNode::Repeat(node, 0, Some(1)),
-            Quantifier::Braces(start, end) => EBNFNode::Repeat(node, start, end),
+            Quantifier::Plus => EBNFNode::Repeat {
+                node,
+                min: 1,
+                max: None,
+            },
+            Quantifier::Star => EBNFNode::Repeat {
+                node,
+                min: 0,
+                max: None,
+            },
+            Quantifier::Question => EBNFNode::Repeat {
+                node,
+                min: 0,
+                max: Some(1),
+            },
+            Quantifier::Braces(min, max) => EBNFNode::Repeat { node, min, max },
         });
     }
 
