@@ -210,13 +210,6 @@ pub enum Literal {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub enum Operator {
-    Assign(AssignOperator),
-    Binary(BinaryOperator),
-    Comparison(ComparisonOperator),
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum AssignOperator {
     Assign,
     AddAssign,
