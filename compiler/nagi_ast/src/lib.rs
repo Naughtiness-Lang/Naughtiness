@@ -5,10 +5,7 @@ pub struct ASTNode {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum ASTNodeKind {
-    Item {
-        visibility: Visibility,
-        item: Item,
-    },
+    Item { visibility: Visibility, item: Item },
     Expression(Expression),
     Type(Types),
     TypeAlias(TypeAlias),
@@ -28,10 +25,7 @@ pub enum ASTNodeKind {
     FunctionParam(FunctionParam),
     FunctionParameters(Vec<FunctionParam>),
 
-    MethodCall {
-        path: Path,
-        params: Option<CallParams>,
-    },
+    MethodCall(MethodCall),
     Field(String),
 }
 
@@ -115,11 +109,7 @@ pub enum Expression {
         parent: Box<Expression>,
         field_name: String,
     },
-    MethodCall {
-        parent: Box<Expression>,
-        field_name: Path,
-        arguments: Vec<Expression>,
-    },
+    MethodCall(MethodCall),
     Index {
         parent: Box<Expression>,
         index: Box<Expression>,
