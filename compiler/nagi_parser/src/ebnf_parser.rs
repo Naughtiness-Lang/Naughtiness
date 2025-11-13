@@ -331,7 +331,7 @@ impl EBNFParseError {
                 format!("{}^", " ".repeat(*position)),
                 format!("expect token: {expect_token}"),
             ]
-            .join("/n"),
+            .join("\n"),
 
             EBNFParseError::UnmatchToken {
                 current_token,
