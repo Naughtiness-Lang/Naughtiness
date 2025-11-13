@@ -1,3 +1,4 @@
+use std::f32::consts::E;
 use std::iter::{from_fn, Enumerate};
 use std::{iter::Peekable, str::Chars};
 
@@ -271,13 +272,20 @@ fn parse_literal(iter: &mut Iter) -> Result<EBNFNode, EBNFParseError> {
 // Digit ::= "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" ;
 fn parse_integer(iter: &mut Iter) -> Result<u64, EBNFParseError> {
     skip_space(iter);
-    from_fn(|| iter.next_if(|c| c.1.is_ascii_digit()))
+    let token = from_fn(|| iter.next_if(|c| c.1.is_ascii_digit()))
         .map(|c| c.1)
-        .collect::<String>()
-        .parse()
-        .map_err(|_| EBNFParseError::ParseIntError {
+        .collect::<String>();
+
+    if token.is_empty() {
+        return Err(EBNFParseError::UnmatchToken {
+            current_token: get_token(iter),
             position: get_position(iter),
-        })
+        });
+    }
+
+    token.parse().map_err(|_| EBNFParseError::ParseIntError {
+        position: get_position(iter),
+    })
 }
 
 fn skip_space(iter: &mut Iter) {
