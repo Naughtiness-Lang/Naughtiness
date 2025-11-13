@@ -166,16 +166,9 @@ pub struct TypeAlias {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Types {
     // hoge::Fuga
-    PathType(Box<Path>),
-
-    // int, u32, String
-    Named(String),
-
     // Vec<T>, HashMap<K, V>
-    Generic {
-        name: String,
-        args: Vec<Types>,
-    },
+    // int, u32, String
+    PathType(Box<Path>),
 
     // fn(i32) -> bool
     Function {
