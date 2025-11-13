@@ -162,7 +162,7 @@ fn parse_primary(iter: &mut Peekable<Chars>) -> Result<EBNFNode, String> {
         return Ok(node);
     }
 
-    if let Ok(node) = parse_expantion(iter) {
+    if let Ok(node) = parse_expansion(iter) {
         return Ok(node);
     }
 
@@ -186,7 +186,7 @@ fn parse_group(iter: &mut Peekable<Chars>) -> Result<EBNFNode, String> {
     Ok(EBNFNode::Group(Box::new(node)))
 }
 
-fn parse_expantion(iter: &mut Peekable<Chars>) -> Result<EBNFNode, String> {
+fn parse_expansion(iter: &mut Peekable<Chars>) -> Result<EBNFNode, String> {
     let name = from_fn(|| iter.next_if(|c| c.is_alphabetic())).collect::<String>();
 
     if name.is_empty() {
