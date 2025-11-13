@@ -115,10 +115,10 @@ pub enum Expression {
         else_body: Option<Box<Expression>>,
     },
     Continue {
-        label: String,
+        label: Option<String>,
     },
     Break {
-        label: String,
+        label: Option<String>,
         expression: Option<Box<Expression>>,
     },
     Return(Option<Box<Expression>>),
@@ -176,6 +176,7 @@ pub enum Types {
         params: Vec<Types>,
         return_type: Box<Types>,
     },
+    //
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
