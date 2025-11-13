@@ -153,12 +153,6 @@ pub enum Statement {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct Import {
-    pub path: Vec<String>,
-    pub alias: Option<String>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct TypeAlias {
     pub name: String,
     pub target: Types,
