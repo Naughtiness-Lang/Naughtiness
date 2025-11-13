@@ -9,12 +9,17 @@ pub(crate) struct EBNF {
 
 #[derive(Debug)]
 pub(crate) enum EBNFNode {
-    Expansion(String),                       // Hoge
-    Concat(Vec<EBNFNode>),                   // Hoge Fuga
-    Or(Vec<EBNFNode>),                       // Hoge | Fuga
-    Repeat(Box<EBNFNode>, u64, Option<u64>), // Hoge? Hoge* Hoge+ Hoge{3} Hoge{7,} Hoge{2, 5}
-    Group(Box<EBNFNode>),                    // (Hoge)
-    Literal(String),                         // "hogefuga"
+    Expansion(String),     // Hoge
+    Concat(Vec<EBNFNode>), // Hoge Fuga
+    Or(Vec<EBNFNode>),     // Hoge | Fuga
+    // Hoge? Hoge* Hoge+ Hoge{3} Hoge{7,} Hoge{2, 5}
+    Repeat {
+        node: Box<EBNFNode>,
+        min: u64,
+        max: Option<u64>,
+    },
+    Group(Box<EBNFNode>), // (Hoge)
+    Literal(String),      // "hogefuga"
 }
 
 #[derive(Debug)]
