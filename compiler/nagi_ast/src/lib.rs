@@ -267,7 +267,7 @@ pub enum Pattern {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Path {
-    pub segment: Vec<PathSegment>,
+    pub segments: Vec<PathSegment>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
