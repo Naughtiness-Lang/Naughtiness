@@ -218,16 +218,16 @@ pub enum Operator {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum AssignOperator {
     Assign,
-    Addition,
-    Subtract,
-    Multiply,
-    Divide,
-    Modulo,
-    And,
-    Or,
-    Xor,
-    LeftShift,
-    RightShift,
+    AddAssign,
+    SubAssign,
+    MulAssign,
+    DivAssign,
+    ModAssign,
+    AndAssign,
+    OrAssign,
+    XorAssign,
+    LeftShiftAssign,
+    RightShiftAssign,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
