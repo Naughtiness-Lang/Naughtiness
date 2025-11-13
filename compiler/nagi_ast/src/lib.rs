@@ -57,6 +57,8 @@ pub enum EnumItem {
         name: String,
         fields: Vec<StructField>,
     },
+
+    // TODO
     TupleItem {
         visibility: Visibility,
         name: String,
@@ -73,7 +75,6 @@ pub struct StructField {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Expression {
     Literal(Literal),
-    Variable(Box<Expression>),
     Path(Path),
     Binary {
         operator: BinaryOperator,
