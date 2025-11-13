@@ -235,7 +235,7 @@ pub enum Literal {
     Char(String),
     UnicodeChar(String),
     String(String),
-    Bool(String),
+    Bool(bool),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
