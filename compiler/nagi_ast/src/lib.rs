@@ -176,7 +176,8 @@ pub enum Types {
         params: Vec<Types>,
         return_type: Box<Types>,
     },
-    //
+
+    Unit, // 型無し
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
