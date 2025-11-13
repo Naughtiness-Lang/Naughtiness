@@ -47,26 +47,14 @@ fn parse_define(iter: &mut ParserIterator) -> Result<EBNF, EBNFParseError> {
         .collect::<String>();
 
     skip_space(iter);
-    if iter.next_if(|c| matches!(c.1, ':')).is_none() {
-        return Err(EBNFParseError::UnexpectedToken {
-            expect_token: ':',
-            unexpected_token: get_token(iter),
-            position: get_position(iter),
-        });
-    }
-    if iter.next_if(|c| matches!(c.1, ':')).is_none() {
-        return Err(EBNFParseError::UnexpectedToken {
-            expect_token: ':',
-            unexpected_token: get_token(iter),
-            position: get_position(iter),
-        });
-    }
-    if iter.next_if(|c| matches!(c.1, '=')).is_none() {
-        return Err(EBNFParseError::UnexpectedToken {
-            expect_token: '=',
-            unexpected_token: get_token(iter),
-            position: get_position(iter),
-        });
+    for expected_char in "::=".chars() {
+        if iter.next_if(|c| c.1 == expected_char).is_none() {
+            return Err(EBNFParseError::UnexpectedToken {
+                expect_token: ':',
+                unexpected_token: get_token(iter),
+                position: get_position(iter),
+            });
+        }
     }
 
     let expr = parse_expression(iter)?;
