@@ -21,11 +21,10 @@ pub enum ASTNodeKind {
     EnumItem(Option<EnumItem>),
     TupleFields(),
     TupleField(),
-    CallParams(CallParams),
+    CallParams(Vec<Expression>),
     FunctionParam(FunctionParam),
     FunctionParameters(Vec<FunctionParam>),
 
-    MethodCall(MethodCall),
     Field(String),
 }
 
@@ -199,11 +198,6 @@ pub struct FunctionParam {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct CallParams {
-    pub params: Vec<Expression>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum ArrayElements {
     List(Vec<Expression>),
     Repeat {
@@ -215,7 +209,7 @@ pub enum ArrayElements {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct MethodCall {
     pub name: Path,
-    pub params: Option<CallParams>,
+    pub params: Vec<Expression>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
