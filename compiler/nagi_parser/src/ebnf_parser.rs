@@ -59,6 +59,14 @@ fn parse_define(iter: &mut ParserIterator) -> Result<EBNF, EBNFParseError> {
 
     let expr = parse_expression(iter)?;
 
+    // ルールの穴により末端まで解析できなかった場合
+    if iter.peek().is_some() {
+        return Err(EBNFParseError::UnmatchToken {
+            current_token: get_token(iter),
+            position: get_position(iter),
+        });
+    }
+
     Ok(EBNF { name, expr })
 }
 
@@ -304,6 +312,7 @@ fn get_position(iter: &mut ParserIterator) -> usize {
     iter.peek().map_or(0, |c| c.0)
 }
 
+#[derive(Debug)]
 enum EBNFParseError {
     UnexpectedToken {
         expect_token: char,
