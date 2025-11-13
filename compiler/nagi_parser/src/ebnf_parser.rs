@@ -1,4 +1,4 @@
-use std::iter::from_fn;
+use std::iter::{from_fn, Enumerate};
 use std::{iter::Peekable, str::Chars};
 
 #[derive(Debug)]
@@ -25,24 +25,43 @@ enum Quantifier {
     Braces(u64, Option<u64>), // {
 }
 
+type Iter<'a> = Peekable<Enumerate<Chars<'a>>>;
+
+const EOF: &str = "EOF";
+
 pub fn parse_ebnf(ebnf: &str) -> Result<EBNF, String> {
-    let mut iter = ebnf.chars().peekable();
-    parse_define(&mut iter)
+    let mut iter = ebnf.chars().enumerate().peekable();
+
+    parse_define(&mut iter).map_err(|e| e.error_message(ebnf))
 }
 
-fn parse_define(iter: &mut Peekable<Chars>) -> Result<EBNF, String> {
+fn parse_define(iter: &mut Iter) -> Result<EBNF, EBNFParseError> {
     skip_space(iter);
-    let name = from_fn(|| iter.next_if(|c| c.is_alphabetic())).collect::<String>();
+    let name = from_fn(|| iter.next_if(|c| c.1.is_alphabetic()))
+        .map(|c| c.1)
+        .collect::<String>();
 
     skip_space(iter);
-    if !matches!(iter.next(), Some(':')) {
-        return Err(error_message(iter, "Define"));
+    if iter.next_if(|c| matches!(c.1, ':')).is_none() {
+        return Err(EBNFParseError::UnexpectedToken {
+            expect_token: ':',
+            unexpected_token: get_token(iter),
+            position: get_position(iter),
+        });
     }
-    if !matches!(iter.next(), Some(':')) {
-        return Err(error_message(iter, "Define"));
+    if iter.next_if(|c| matches!(c.1, ':')).is_none() {
+        return Err(EBNFParseError::UnexpectedToken {
+            expect_token: ':',
+            unexpected_token: get_token(iter),
+            position: get_position(iter),
+        });
     }
-    if !matches!(iter.next(), Some('=')) {
-        return Err(error_message(iter, "Define"));
+    if iter.next_if(|c| matches!(c.1, '=')).is_none() {
+        return Err(EBNFParseError::UnexpectedToken {
+            expect_token: '=',
+            unexpected_token: get_token(iter),
+            position: get_position(iter),
+        });
     }
 
     let expr = parse_expression(iter)?;
@@ -51,13 +70,13 @@ fn parse_define(iter: &mut Peekable<Chars>) -> Result<EBNF, String> {
 }
 
 // Expression ::= Or ;
-fn parse_expression(iter: &mut Peekable<Chars>) -> Result<EBNFNode, String> {
+fn parse_expression(iter: &mut Iter) -> Result<EBNFNode, EBNFParseError> {
     skip_space(iter);
     parse_or(iter)
 }
 
 // Or ::= Concat { "|" Concat } ;
-fn parse_or(iter: &mut Peekable<Chars>) -> Result<EBNFNode, String> {
+fn parse_or(iter: &mut Iter) -> Result<EBNFNode, EBNFParseError> {
     // Concat
     skip_space(iter);
     let left = parse_concat(iter)?;
@@ -65,7 +84,7 @@ fn parse_or(iter: &mut Peekable<Chars>) -> Result<EBNFNode, String> {
     //
     skip_space(iter);
     let mut right = vec![];
-    while iter.next_if(|t| matches!(t, '|')).is_some() {
+    while iter.next_if(|c| matches!(c.1, '|')).is_some() {
         right.push(parse_concat(iter)?);
         skip_space(iter);
     }
@@ -79,7 +98,7 @@ fn parse_or(iter: &mut Peekable<Chars>) -> Result<EBNFNode, String> {
 }
 
 // Concat ::= Repeat { Repeat } ;
-fn parse_concat(iter: &mut Peekable<Chars>) -> Result<EBNFNode, String> {
+fn parse_concat(iter: &mut Iter) -> Result<EBNFNode, EBNFParseError> {
     let left = parse_repeat(iter)?;
     let mut vec = vec![];
 
@@ -96,7 +115,7 @@ fn parse_concat(iter: &mut Peekable<Chars>) -> Result<EBNFNode, String> {
 }
 
 // Repeat ::= Primary [ Quantifier ] ;
-fn parse_repeat(iter: &mut Peekable<Chars>) -> Result<EBNFNode, String> {
+fn parse_repeat(iter: &mut Iter) -> Result<EBNFNode, EBNFParseError> {
     let node = parse_primary(iter)?;
 
     if let Ok(quantifier) = parse_quantifier(iter) {
@@ -113,10 +132,10 @@ fn parse_repeat(iter: &mut Peekable<Chars>) -> Result<EBNFNode, String> {
 }
 
 // Quantifier ::= "?" | "*" | "+" | "{" Integer [ "," [ Integer ] ] "}" ;
-fn parse_quantifier(iter: &mut Peekable<Chars>) -> Result<Quantifier, String> {
+fn parse_quantifier(iter: &mut Iter) -> Result<Quantifier, EBNFParseError> {
     skip_space(iter);
-    let t = iter.peek().ok_or("".to_string())?;
-    let res = match t {
+    let t = iter.peek().ok_or(EBNFParseError::UnexpectedEOF)?;
+    let res = match t.1 {
         '?' => Quantifier::Question,
         '*' => Quantifier::Star,
         '+' => Quantifier::Plus,
@@ -127,19 +146,28 @@ fn parse_quantifier(iter: &mut Peekable<Chars>) -> Result<Quantifier, String> {
             let mut end = None;
 
             skip_space(iter);
-            if iter.next_if(|t| matches!(t, ',')).is_some() {
+            if iter.next_if(|t| matches!(t.1, ',')).is_some() {
                 end = parse_integer(iter).ok();
             }
 
             skip_space(iter);
-            if iter.next_if(|t| matches!(t, '}')).is_none() {
-                return Err("} ".to_string());
+            if iter.next_if(|t| matches!(t.1, '}')).is_none() {
+                return Err(EBNFParseError::UnexpectedToken {
+                    expect_token: '}',
+                    unexpected_token: get_token(iter),
+                    position: get_position(iter),
+                });
             }
 
             Quantifier::Braces(start, end)
         }
 
-        _ => return Err("".to_string()),
+        _ => {
+            return Err(EBNFParseError::UnmatchToken {
+                current_token: get_token(iter),
+                position: get_position(iter),
+            })
+        }
     };
 
     if matches!(
@@ -153,7 +181,7 @@ fn parse_quantifier(iter: &mut Peekable<Chars>) -> Result<Quantifier, String> {
 }
 
 // Primary ::= Literal | Group | Expansion;
-fn parse_primary(iter: &mut Peekable<Chars>) -> Result<EBNFNode, String> {
+fn parse_primary(iter: &mut Iter) -> Result<EBNFNode, EBNFParseError> {
     if let Ok(node) = parse_literal(iter) {
         return Ok(node);
     }
@@ -166,49 +194,74 @@ fn parse_primary(iter: &mut Peekable<Chars>) -> Result<EBNFNode, String> {
         return Ok(node);
     }
 
-    Err(error_message(iter, "Primary"))
+    Err(EBNFParseError::UnmatchToken {
+        current_token: get_token(iter),
+        position: get_position(iter),
+    })
 }
 
 // Group ::= "(" Or ")" ;
-fn parse_group(iter: &mut Peekable<Chars>) -> Result<EBNFNode, String> {
+fn parse_group(iter: &mut Iter) -> Result<EBNFNode, EBNFParseError> {
     skip_space(iter);
-    if iter.next_if(|c| matches!(c, '(')).is_none() {
-        return Err(error_message(iter, "Group"));
+    if iter.next_if(|c| matches!(c.1, '(')).is_none() {
+        return Err(EBNFParseError::UnexpectedToken {
+            expect_token: '(',
+            unexpected_token: get_token(iter),
+            position: get_position(iter),
+        });
     }
 
     let node = parse_or(iter)?;
 
     skip_space(iter);
-    if iter.next_if(|c| matches!(c, ')')).is_none() {
-        return Err(error_message(iter, "Group"));
+    if iter.next_if(|c| matches!(c.1, ')')).is_none() {
+        return Err(EBNFParseError::UnexpectedToken {
+            expect_token: ')',
+            unexpected_token: get_token(iter),
+            position: get_position(iter),
+        });
     }
 
     Ok(EBNFNode::Group(Box::new(node)))
 }
 
-fn parse_expansion(iter: &mut Peekable<Chars>) -> Result<EBNFNode, String> {
-    let name = from_fn(|| iter.next_if(|c| c.is_alphabetic())).collect::<String>();
+fn parse_expansion(iter: &mut Iter) -> Result<EBNFNode, EBNFParseError> {
+    let name = from_fn(|| iter.next_if(|c| c.1.is_alphabetic()))
+        .map(|c| c.1)
+        .collect::<String>();
 
     if name.is_empty() {
-        return Err(error_message(iter, "Expansion"));
+        return Err(EBNFParseError::ParseExpansionError {
+            position: get_position(iter),
+        });
     }
 
     Ok(EBNFNode::Expansion(name))
 }
 
 // Literal ::= "\"" { any-char-except-quote } "\"" ;
-fn parse_literal(iter: &mut Peekable<Chars>) -> Result<EBNFNode, String> {
+fn parse_literal(iter: &mut Iter) -> Result<EBNFNode, EBNFParseError> {
     skip_space(iter);
-    if iter.next_if(|c| matches!(c, '"')).is_none() {
-        return Err(error_message(iter, "Literal"));
+    if iter.next_if(|c| matches!(c.1, '"')).is_none() {
+        return Err(EBNFParseError::UnexpectedToken {
+            expect_token: '"',
+            unexpected_token: get_token(iter),
+            position: get_position(iter),
+        });
     }
 
     skip_space(iter);
-    let literal = from_fn(|| iter.next_if(|c| !matches!(c, '"'))).collect();
+    let literal = from_fn(|| iter.next_if(|c| !matches!(c.1, '"')))
+        .map(|c| c.1)
+        .collect();
 
     skip_space(iter);
-    if iter.next_if(|c| matches!(c, '"')).is_none() {
-        return Err(error_message(iter, "Literal"));
+    if iter.next_if(|c| matches!(c.1, '"')).is_none() {
+        return Err(EBNFParseError::UnexpectedToken {
+            expect_token: '"',
+            unexpected_token: get_token(iter),
+            position: get_position(iter),
+        });
     }
 
     Ok(EBNFNode::Literal(literal))
@@ -216,18 +269,95 @@ fn parse_literal(iter: &mut Peekable<Chars>) -> Result<EBNFNode, String> {
 
 // Integer ::= Digit { Digit } ;
 // Digit ::= "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" ;
-fn parse_integer(iter: &mut Peekable<Chars>) -> Result<u64, String> {
+fn parse_integer(iter: &mut Iter) -> Result<u64, EBNFParseError> {
     skip_space(iter);
-    from_fn(|| iter.next_if(|c| c.is_numeric()))
+    from_fn(|| iter.next_if(|c| c.1.is_ascii_digit()))
+        .map(|c| c.1)
         .collect::<String>()
         .parse()
-        .map_err(|e| format!("{e:?}"))
+        .map_err(|_| EBNFParseError::ParseIntError {
+            position: get_position(iter),
+        })
 }
 
-fn skip_space(iter: &mut Peekable<Chars>) {
-    while iter.next_if(|c| c.is_whitespace()).is_some() {}
+fn skip_space(iter: &mut Iter) {
+    while iter.next_if(|c| c.1.is_whitespace()).is_some() {}
 }
 
-fn error_message(iter: &mut Peekable<Chars>, rule: &str) -> String {
-    format!("rule: {}, unexcept token: {:?} ", rule, iter.peek())
+fn get_token(iter: &mut Iter) -> String {
+    iter.peek().map_or(EOF.to_string(), |c| c.1.to_string())
+}
+
+fn get_position(iter: &mut Iter) -> usize {
+    iter.peek().map_or(0, |c| c.0)
+}
+
+enum EBNFParseError {
+    UnexpectedToken {
+        expect_token: char,
+        unexpected_token: String,
+        position: usize,
+    },
+    UnmatchToken {
+        current_token: String,
+        position: usize,
+    },
+    UnexpectedEOF,
+    ParseIntError {
+        position: usize,
+    },
+    ParseExpansionError {
+        position: usize,
+    },
+}
+
+impl EBNFParseError {
+    fn error_message(&self, rule: &str) -> String {
+        match self {
+            EBNFParseError::UnexpectedToken {
+                expect_token,
+                unexpected_token,
+                position,
+            } => [
+                format!("unexpected token: {unexpected_token}"),
+                rule.to_string(),
+                format!("{}^", " ".repeat(*position)),
+                format!("expect token: {expect_token}"),
+            ]
+            .join("/n"),
+
+            EBNFParseError::UnmatchToken {
+                current_token,
+                position,
+            } => {
+                let position = if current_token == EOF {
+                    rule.len()
+                } else {
+                    *position
+                };
+
+                [
+                    format!("unmatch token: {current_token}"),
+                    rule.to_string(),
+                    format!("{}^", " ".repeat(position)),
+                ]
+                .join("\n")
+            }
+
+            EBNFParseError::UnexpectedEOF => "unexpected EOF".to_string(),
+            EBNFParseError::ParseIntError { position } => [
+                "can not parse integer".to_string(),
+                rule.to_string(),
+                format!("{}^", " ".repeat(*position)),
+            ]
+            .join("\n"),
+
+            EBNFParseError::ParseExpansionError { position } => [
+                "can not parse expansion".to_string(),
+                rule.to_string(),
+                format!("{}^", " ".repeat(*position)),
+            ]
+            .join("\n"),
+        }
+    }
 }
