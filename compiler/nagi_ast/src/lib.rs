@@ -266,12 +266,11 @@ pub enum Pattern {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Path {
-    pub path_type: PathType,
-    pub child: Option<Box<Path>>,
+    pub segment: Vec<PathSegment>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub enum PathType {
-    Identifier(String),
-    Generic(Types),
+pub struct PathSegment {
+    pub ident: String,
+    pub arguments: Option<Types>,
 }
