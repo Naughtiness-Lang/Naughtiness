@@ -50,7 +50,7 @@ fn parse_define(iter: &mut ParserIterator) -> Result<EBNF, EBNFParseError> {
     for expected_char in "::=".chars() {
         if iter.next_if(|c| c.1 == expected_char).is_none() {
             return Err(EBNFParseError::UnexpectedToken {
-                expect_token: ':',
+                expect_token: expected_char,
                 unexpected_token: get_token(iter),
                 position: get_position(iter),
             });
