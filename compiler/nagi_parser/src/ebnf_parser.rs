@@ -3,8 +3,8 @@ use std::{iter::Peekable, str::Chars};
 
 #[derive(Debug)]
 pub(crate) struct EBNF {
-    name: String,
-    expr: EBNFNode,
+    pub name: String,   // 定義したルール名
+    pub expr: EBNFNode, // ツリー構造(ルールの中身)
 }
 
 #[derive(Debug)]
@@ -27,7 +27,6 @@ enum Quantifier {
 
 pub fn parse_ebnf(ebnf: &str) -> Result<EBNF, String> {
     let mut iter = ebnf.chars().peekable();
-
     parse_define(&mut iter)
 }
 
