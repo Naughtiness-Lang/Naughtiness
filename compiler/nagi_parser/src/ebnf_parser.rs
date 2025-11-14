@@ -154,6 +154,7 @@ fn parse_concat(iter: &mut ParserIterator) -> Result<EBNFNode, EBNFParseError> {
     let mut nodes = vec![parse_repeat(iter)?];
 
     loop {
+        skip_space(iter);
         let Some((_, c)) = iter.peek() else {
             break;
         };
