@@ -80,22 +80,20 @@ fn parse_expression(iter: &mut ParserIterator) -> Result<EBNFNode, EBNFParseErro
 fn parse_or(iter: &mut ParserIterator) -> Result<EBNFNode, EBNFParseError> {
     // Concat
     skip_space(iter);
-    let left = parse_concat(iter)?;
+    let mut nodes = vec![parse_concat(iter)?];
 
     //
     skip_space(iter);
-    let mut right = vec![];
     while iter.next_if(|c| matches!(c.1, '|')).is_some() {
-        right.push(parse_concat(iter)?);
+        nodes.push(parse_concat(iter)?);
         skip_space(iter);
     }
 
-    if right.is_empty() {
-        return Ok(left);
+    if nodes.len() == 1 {
+        return Ok(nodes.pop().unwrap());
     }
 
-    right.insert(0, left);
-    Ok(EBNFNode::Or(right))
+    Ok(EBNFNode::Or(nodes))
 }
 
 // Concat ::= Repeat { Repeat } ;
@@ -124,7 +122,6 @@ fn parse_concat(iter: &mut ParserIterator) -> Result<EBNFNode, EBNFParseError> {
 // Repeat ::= Primary [ Quantifier ] ;
 fn parse_repeat(iter: &mut ParserIterator) -> Result<EBNFNode, EBNFParseError> {
     let node = parse_primary(iter)?;
-
     if let Ok(quantifier) = parse_quantifier(iter) {
         let node = Box::new(node);
         return Ok(match quantifier {
