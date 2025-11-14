@@ -5,9 +5,9 @@ use std::{iter::Peekable, str::Chars};
 
 #[derive(Debug)]
 pub(crate) struct EBNF {
-    pub name: String,   // 定義したルール名
-    expr: Rc<EBNFNode>, // ツリー構造(ルールの中身)
-    state_map: HashMap<usize, Rc<EBNFNode>>,
+    pub name: String,                        // 定義したルール名
+    expr: Rc<EBNFNode>,                      // ツリー構造(ルールの中身)
+    state_map: HashMap<usize, Rc<EBNFNode>>, // ルールの位置(状態)に応じたマップ
 }
 
 impl EBNF {
@@ -398,7 +398,7 @@ enum EBNFParseError {
 }
 
 impl EBNFParseError {
-    fn error_message(&self, rule: &str) -> String {
+    fn error_message(&self, input: &str) -> String {
         match self {
             EBNFParseError::UnexpectedToken {
                 expect_token,
@@ -406,7 +406,7 @@ impl EBNFParseError {
                 position,
             } => [
                 format!("unexpected token: {unexpected_token}"),
-                rule.to_string(),
+                input.to_string(),
                 format!("{}^", " ".repeat(*position)),
                 format!("expect token: {expect_token}"),
             ]
@@ -417,14 +417,14 @@ impl EBNFParseError {
                 position,
             } => {
                 let position = if current_token == EOF {
-                    rule.len()
+                    input.len()
                 } else {
                     *position
                 };
 
                 [
                     format!("unmatch token: {current_token}"),
-                    rule.to_string(),
+                    input.to_string(),
                     format!("{}^", " ".repeat(position)),
                 ]
                 .join("\n")
@@ -433,14 +433,14 @@ impl EBNFParseError {
             EBNFParseError::UnexpectedEOF => "unexpected EOF".to_string(),
             EBNFParseError::ParseIntError { position } => [
                 "can not parse integer".to_string(),
-                rule.to_string(),
+                input.to_string(),
                 format!("{}^", " ".repeat(*position)),
             ]
             .join("\n"),
 
             EBNFParseError::ParseExpansionError { position } => [
                 "can not parse expansion".to_string(),
-                rule.to_string(),
+                input.to_string(),
                 format!("{}^", " ".repeat(*position)),
             ]
             .join("\n"),
