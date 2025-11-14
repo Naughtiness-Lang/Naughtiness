@@ -109,6 +109,8 @@ fn parse_concat(iter: &mut ParserIterator) -> Result<EBNFNode, EBNFParseError> {
 
         if matches!(c, '"' | '(') || c.is_alphabetic() {
             nodes.push(parse_repeat(iter)?);
+        } else {
+            break;
         }
     }
 
