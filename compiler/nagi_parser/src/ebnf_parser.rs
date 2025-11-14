@@ -1,25 +1,78 @@
+use std::collections::HashMap;
 use std::iter::{from_fn, Enumerate};
+use std::rc::Rc;
 use std::{iter::Peekable, str::Chars};
 
 #[derive(Debug)]
 pub(crate) struct EBNF {
     pub name: String,   // 定義したルール名
-    pub expr: EBNFNode, // ツリー構造(ルールの中身)
+    expr: Rc<EBNFNode>, // ツリー構造(ルールの中身)
+    state_map: HashMap<usize, Rc<EBNFNode>>,
+}
+
+impl EBNF {
+    pub fn new(name: String, expr: EBNFNode) -> Self {
+        let expr = Rc::new(expr);
+        let state_map = make_state_map(&expr);
+        Self {
+            name,
+            expr,
+            state_map,
+        }
+    }
+
+    pub fn get_node(&self, index: usize) -> Option<&EBNFNode> {
+        self.state_map.get(&index).map(|f| &**f)
+    }
+}
+
+fn make_state_map(expr: &Rc<EBNFNode>) -> HashMap<usize, Rc<EBNFNode>> {
+    let mut vec = vec![];
+    let mut stack = vec![expr.clone()];
+    while let Some(current_node) = stack.pop() {
+        match &*current_node {
+            EBNFNode::Expansion(_) => vec.push(current_node),
+            EBNFNode::Concat(nodes) => {
+                for node in nodes.iter().rev() {
+                    stack.push(node.clone());
+                }
+            }
+            EBNFNode::Or(nodes) => {
+                for node in nodes.iter().rev() {
+                    stack.push(node.clone());
+                }
+            }
+            EBNFNode::Repeat {
+                node,
+                min: _,
+                max: _,
+            } => {
+                vec.push(current_node.clone());
+                stack.push(node.clone());
+            }
+            EBNFNode::Group(node) => {
+                stack.push(node.clone());
+            }
+            EBNFNode::Literal(_) => vec.push(current_node),
+        }
+    }
+
+    vec.into_iter().enumerate().collect()
 }
 
 #[derive(Debug)]
 pub(crate) enum EBNFNode {
-    Expansion(String),     // Hoge
-    Concat(Vec<EBNFNode>), // Hoge Fuga
-    Or(Vec<EBNFNode>),     // Hoge | Fuga
+    Expansion(String),         // Hoge
+    Concat(Vec<Rc<EBNFNode>>), // Hoge Fuga
+    Or(Vec<Rc<EBNFNode>>),     // Hoge | Fuga
     // Hoge? Hoge* Hoge+ Hoge{3} Hoge{7,} Hoge{2, 5}
     Repeat {
-        node: Box<EBNFNode>,
+        node: Rc<EBNFNode>,
         min: u64,
         max: Option<u64>,
     },
-    Group(Box<EBNFNode>), // (Hoge)
-    Literal(String),      // "hogefuga"
+    Group(Rc<EBNFNode>), // (Hoge)
+    Literal(String),     // "hogefuga"
 }
 
 #[derive(Debug)]
@@ -67,7 +120,7 @@ fn parse_define(iter: &mut ParserIterator) -> Result<EBNF, EBNFParseError> {
         });
     }
 
-    Ok(EBNF { name, expr })
+    Ok(EBNF::new(name, expr))
 }
 
 // Expression ::= Or ;
@@ -93,7 +146,9 @@ fn parse_or(iter: &mut ParserIterator) -> Result<EBNFNode, EBNFParseError> {
         return Ok(nodes.pop().unwrap());
     }
 
-    Ok(EBNFNode::Or(nodes))
+    Ok(EBNFNode::Or(
+        nodes.into_iter().map(|node| Rc::new(node)).collect(),
+    ))
 }
 
 // Concat ::= Repeat { Repeat } ;
@@ -116,14 +171,16 @@ fn parse_concat(iter: &mut ParserIterator) -> Result<EBNFNode, EBNFParseError> {
         return Ok(nodes.pop().unwrap());
     }
 
-    Ok(EBNFNode::Concat(nodes))
+    Ok(EBNFNode::Concat(
+        nodes.into_iter().map(|node| Rc::new(node)).collect(),
+    ))
 }
 
 // Repeat ::= Primary [ Quantifier ] ;
 fn parse_repeat(iter: &mut ParserIterator) -> Result<EBNFNode, EBNFParseError> {
     let node = parse_primary(iter)?;
     if let Ok(quantifier) = parse_quantifier(iter) {
-        let node = Box::new(node);
+        let node = Rc::new(node);
         return Ok(match quantifier {
             Quantifier::Plus => EBNFNode::Repeat {
                 node,
@@ -243,7 +300,7 @@ fn parse_group(iter: &mut ParserIterator) -> Result<EBNFNode, EBNFParseError> {
         });
     }
 
-    Ok(EBNFNode::Group(Box::new(node)))
+    Ok(EBNFNode::Group(Rc::new(node)))
 }
 
 fn parse_expansion(iter: &mut ParserIterator) -> Result<EBNFNode, EBNFParseError> {
