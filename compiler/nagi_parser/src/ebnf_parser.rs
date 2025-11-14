@@ -146,9 +146,7 @@ fn parse_or(iter: &mut ParserIterator) -> Result<EBNFNode, EBNFParseError> {
         return Ok(nodes.pop().unwrap());
     }
 
-    Ok(EBNFNode::Or(
-        nodes.into_iter().map(|node| Rc::new(node)).collect(),
-    ))
+    Ok(EBNFNode::Or(nodes.into_iter().map(Rc::new).collect()))
 }
 
 // Concat ::= Repeat { Repeat } ;
@@ -171,9 +169,7 @@ fn parse_concat(iter: &mut ParserIterator) -> Result<EBNFNode, EBNFParseError> {
         return Ok(nodes.pop().unwrap());
     }
 
-    Ok(EBNFNode::Concat(
-        nodes.into_iter().map(|node| Rc::new(node)).collect(),
-    ))
+    Ok(EBNFNode::Concat(nodes.into_iter().map(Rc::new).collect()))
 }
 
 // Repeat ::= Primary [ Quantifier ] ;
