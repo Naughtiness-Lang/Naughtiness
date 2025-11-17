@@ -1,78 +1,33 @@
 use std::collections::HashMap;
-use std::iter::{from_fn, Enumerate};
+use std::iter::from_fn;
+use std::iter::Peekable;
 use std::rc::Rc;
-use std::{iter::Peekable, str::Chars};
+use std::str::CharIndices;
+
+type ParserIterator<'a> = Peekable<CharIndices<'a>>;
+
+const EOF: &str = "EOF";
 
 #[derive(Debug)]
-pub(crate) struct EBNF {
-    pub name: String,                        // 定義したルール名
-    expr: Rc<EBNFNode>,                      // ツリー構造(ルールの中身)
-    state_map: HashMap<usize, Rc<EBNFNode>>, // ルールの位置(状態)に応じたマップ
-}
-
-impl EBNF {
-    pub fn new(name: String, expr: EBNFNode) -> Self {
-        let expr = Rc::new(expr);
-        let state_map = make_state_map(&expr);
-        Self {
-            name,
-            expr,
-            state_map,
-        }
-    }
-
-    pub fn get_node(&self, index: usize) -> Option<&EBNFNode> {
-        self.state_map.get(&index).map(|f| &**f)
-    }
-}
-
-fn make_state_map(expr: &Rc<EBNFNode>) -> HashMap<usize, Rc<EBNFNode>> {
-    let mut vec = vec![];
-    let mut stack = vec![expr.clone()];
-    while let Some(current_node) = stack.pop() {
-        match &*current_node {
-            EBNFNode::Expansion(_) => vec.push(current_node),
-            EBNFNode::Concat(nodes) => {
-                for node in nodes.iter().rev() {
-                    stack.push(node.clone());
-                }
-            }
-            EBNFNode::Or(nodes) => {
-                for node in nodes.iter().rev() {
-                    stack.push(node.clone());
-                }
-            }
-            EBNFNode::Repeat {
-                node,
-                min: _,
-                max: _,
-            } => {
-                vec.push(current_node.clone());
-                stack.push(node.clone());
-            }
-            EBNFNode::Group(node) => {
-                stack.push(node.clone());
-            }
-            EBNFNode::Literal(_) => vec.push(current_node),
-        }
-    }
-
-    vec.into_iter().enumerate().collect()
+pub(crate) struct EBNF<'a> {
+    pub name: String,                            // 定義したルール名
+    expr: Rc<EBNFNode<'a>>,                      // ツリー構造(ルールの中身)
+    state_map: HashMap<usize, Rc<EBNFNode<'a>>>, // ルールの位置(状態)に応じたマップ
 }
 
 #[derive(Debug)]
-pub(crate) enum EBNFNode {
-    Expansion(String),         // Hoge
-    Concat(Vec<Rc<EBNFNode>>), // Hoge Fuga
-    Or(Vec<Rc<EBNFNode>>),     // Hoge | Fuga
+pub(crate) enum EBNFNode<'a> {
+    Expansion(&'a str),            // Hoge
+    Concat(Vec<Rc<EBNFNode<'a>>>), // Hoge Fuga
+    Or(Vec<Rc<EBNFNode<'a>>>),     // Hoge | Fuga
     // Hoge? Hoge* Hoge+ Hoge{3} Hoge{7,} Hoge{2, 5}
     Repeat {
-        node: Rc<EBNFNode>,
+        node: Rc<EBNFNode<'a>>,
         min: u64,
         max: Option<u64>,
     },
-    Group(Rc<EBNFNode>), // (Hoge)
-    Literal(String),     // "hogefuga"
+    Group(Rc<EBNFNode<'a>>), // (Hoge)
+    Literal(&'a str),        // "hogefuga"
 }
 
 #[derive(Debug)]
@@ -83,17 +38,16 @@ enum Quantifier {
     Braces(u64, Option<u64>), // {
 }
 
-type ParserIterator<'a> = Peekable<Enumerate<Chars<'a>>>;
+pub fn parse_ebnf<'a>(source: &'a str) -> Result<EBNF<'a>, String> {
+    let mut iter = source.char_indices().peekable();
 
-const EOF: &str = "EOF";
-
-pub fn parse_ebnf(ebnf: &str) -> Result<EBNF, String> {
-    let mut iter = ebnf.chars().enumerate().peekable();
-
-    parse_define(&mut iter).map_err(|e| e.error_message(ebnf))
+    parse_define(source, &mut iter).map_err(|e| e.error_message(source))
 }
 
-fn parse_define(iter: &mut ParserIterator) -> Result<EBNF, EBNFParseError> {
+fn parse_define<'a>(
+    source: &'a str,
+    iter: &mut ParserIterator,
+) -> Result<EBNF<'a>, EBNFParseError> {
     skip_space(iter);
     let name = from_fn(|| iter.next_if(|c| c.1.is_alphabetic()))
         .map(|c| c.1)
@@ -110,7 +64,7 @@ fn parse_define(iter: &mut ParserIterator) -> Result<EBNF, EBNFParseError> {
         }
     }
 
-    let expr = parse_expression(iter)?;
+    let expr = parse_expression(source, iter)?;
 
     // ルールの穴により末端まで解析できなかった場合
     if iter.peek().is_some() {
@@ -124,21 +78,27 @@ fn parse_define(iter: &mut ParserIterator) -> Result<EBNF, EBNFParseError> {
 }
 
 // Expression ::= Or ;
-fn parse_expression(iter: &mut ParserIterator) -> Result<EBNFNode, EBNFParseError> {
+fn parse_expression<'a>(
+    source: &'a str,
+    iter: &mut ParserIterator,
+) -> Result<EBNFNode<'a>, EBNFParseError> {
     skip_space(iter);
-    parse_or(iter)
+    parse_or(source, iter)
 }
 
 // Or ::= Concat { "|" Concat } ;
-fn parse_or(iter: &mut ParserIterator) -> Result<EBNFNode, EBNFParseError> {
+fn parse_or<'a>(
+    source: &'a str,
+    iter: &mut ParserIterator,
+) -> Result<EBNFNode<'a>, EBNFParseError> {
     // Concat
     skip_space(iter);
-    let mut nodes = vec![parse_concat(iter)?];
+    let mut nodes = vec![parse_concat(source, iter)?];
 
     //
     skip_space(iter);
     while iter.next_if(|c| matches!(c.1, '|')).is_some() {
-        nodes.push(parse_concat(iter)?);
+        nodes.push(parse_concat(source, iter)?);
         skip_space(iter);
     }
 
@@ -150,8 +110,11 @@ fn parse_or(iter: &mut ParserIterator) -> Result<EBNFNode, EBNFParseError> {
 }
 
 // Concat ::= Repeat { Repeat } ;
-fn parse_concat(iter: &mut ParserIterator) -> Result<EBNFNode, EBNFParseError> {
-    let mut nodes = vec![parse_repeat(iter)?];
+fn parse_concat<'a>(
+    source: &'a str,
+    iter: &mut ParserIterator,
+) -> Result<EBNFNode<'a>, EBNFParseError> {
+    let mut nodes = vec![parse_repeat(source, iter)?];
 
     loop {
         skip_space(iter);
@@ -160,7 +123,7 @@ fn parse_concat(iter: &mut ParserIterator) -> Result<EBNFNode, EBNFParseError> {
         };
 
         if matches!(c, '"' | '(') || c.is_alphabetic() {
-            nodes.push(parse_repeat(iter)?);
+            nodes.push(parse_repeat(source, iter)?);
         } else {
             break;
         }
@@ -174,8 +137,11 @@ fn parse_concat(iter: &mut ParserIterator) -> Result<EBNFNode, EBNFParseError> {
 }
 
 // Repeat ::= Primary [ Quantifier ] ;
-fn parse_repeat(iter: &mut ParserIterator) -> Result<EBNFNode, EBNFParseError> {
-    let node = parse_primary(iter)?;
+fn parse_repeat<'a>(
+    source: &'a str,
+    iter: &mut ParserIterator,
+) -> Result<EBNFNode<'a>, EBNFParseError> {
+    let node = parse_primary(source, iter)?;
     if let Ok(quantifier) = parse_quantifier(iter) {
         let node = Rc::new(node);
         return Ok(match quantifier {
@@ -258,16 +224,19 @@ fn parse_quantifier(iter: &mut ParserIterator) -> Result<Quantifier, EBNFParseEr
 }
 
 // Primary ::= Literal | Group | Expansion;
-fn parse_primary(iter: &mut ParserIterator) -> Result<EBNFNode, EBNFParseError> {
+fn parse_primary<'a>(
+    source: &'a str,
+    iter: &mut ParserIterator,
+) -> Result<EBNFNode<'a>, EBNFParseError> {
     skip_space(iter);
     let Some(&(_, c)) = iter.peek() else {
         return Err(EBNFParseError::UnexpectedEOF);
     };
 
     match c {
-        '"' => parse_literal(iter),
-        '(' => parse_group(iter),
-        _ if c.is_alphabetic() => parse_expansion(iter),
+        '"' => parse_literal(source, iter),
+        '(' => parse_group(source, iter),
+        _ if c.is_alphabetic() => parse_expansion(source, iter),
         _ => Err(EBNFParseError::UnmatchToken {
             current_token: get_token(iter),
             position: get_position(iter),
@@ -276,7 +245,10 @@ fn parse_primary(iter: &mut ParserIterator) -> Result<EBNFNode, EBNFParseError> 
 }
 
 // Group ::= "(" Or ")" ;
-fn parse_group(iter: &mut ParserIterator) -> Result<EBNFNode, EBNFParseError> {
+fn parse_group<'a>(
+    source: &'a str,
+    iter: &mut ParserIterator,
+) -> Result<EBNFNode<'a>, EBNFParseError> {
     skip_space(iter);
     if iter.next_if(|c| matches!(c.1, '(')).is_none() {
         return Err(EBNFParseError::UnexpectedToken {
@@ -286,7 +258,7 @@ fn parse_group(iter: &mut ParserIterator) -> Result<EBNFNode, EBNFParseError> {
         });
     }
 
-    let node = parse_or(iter)?;
+    let node = parse_or(source, iter)?;
 
     skip_space(iter);
     if iter.next_if(|c| matches!(c.1, ')')).is_none() {
@@ -300,22 +272,34 @@ fn parse_group(iter: &mut ParserIterator) -> Result<EBNFNode, EBNFParseError> {
     Ok(EBNFNode::Group(Rc::new(node)))
 }
 
-fn parse_expansion(iter: &mut ParserIterator) -> Result<EBNFNode, EBNFParseError> {
-    let name = from_fn(|| iter.next_if(|c| c.1.is_alphabetic()))
-        .map(|c| c.1)
-        .collect::<String>();
+fn parse_expansion<'a>(
+    source: &'a str,
+    iter: &mut ParserIterator,
+) -> Result<EBNFNode<'a>, EBNFParseError> {
+    skip_space(iter);
+    let Some(&(start, _)) = iter.peek() else {
+        return Err(EBNFParseError::UnexpectedEOF);
+    };
 
-    if name.is_empty() {
+    let _ = from_fn(|| iter.next_if(|c| c.1.is_alphabetic() || c.1.is_ascii_digit())).count();
+    let end = iter.peek().map(|e| e.0).unwrap_or(source.len());
+
+    if start == end {
         return Err(EBNFParseError::ParseExpansionError {
             position: get_position(iter),
         });
     }
 
+    let name = &source[start..end];
+
     Ok(EBNFNode::Expansion(name))
 }
 
 // Literal ::= "\"" { any-char-except-quote } "\"" ;
-fn parse_literal(iter: &mut ParserIterator) -> Result<EBNFNode, EBNFParseError> {
+fn parse_literal<'a>(
+    source: &'a str,
+    iter: &mut ParserIterator,
+) -> Result<EBNFNode<'a>, EBNFParseError> {
     skip_space(iter);
     if iter.next_if(|c| matches!(c.1, '"')).is_none() {
         return Err(EBNFParseError::UnexpectedToken {
@@ -326,9 +310,20 @@ fn parse_literal(iter: &mut ParserIterator) -> Result<EBNFNode, EBNFParseError> 
     }
 
     skip_space(iter);
-    let literal = from_fn(|| iter.next_if(|c| !matches!(c.1, '"')))
-        .map(|c| c.1)
-        .collect();
+    let Some(&(start, _)) = iter.peek() else {
+        return Err(EBNFParseError::UnexpectedEOF);
+    };
+
+    let _ = from_fn(|| iter.next_if(|c| !matches!(c.1, '"'))).count();
+    let end = iter.peek().map(|e| e.0).unwrap_or(source.len());
+
+    if start == end {
+        return Err(EBNFParseError::ParseIntError {
+            position: get_position(iter),
+        });
+    }
+
+    let literal = &source[start..end];
 
     skip_space(iter);
     if iter.next_if(|c| matches!(c.1, '"')).is_none() {
