@@ -94,7 +94,7 @@ impl<'a> EBNF<'a> {
 
         // 単純に1加算した値が次のグループかを判断できないので
         // 親を参照し親のデータから次のグループに移動するかを判断する
-        let Some((node, parent_state)) = self.step_out(state) else {
+        let Some((parent_node, parent_state)) = self.step_out(state) else {
             // 親はいないが次のグループが存在する場合
             let next_state = depth_key | next_group_key;
             let node = self.state_map.get(&next_state)?;
@@ -104,9 +104,11 @@ impl<'a> EBNF<'a> {
         // 次のグループがない場合は親ノードへ
         let group_start_point =
             (parent_state & CHILDREN_GROUP_BIT_MASK) >> CHILDREN_GROUP_BIT_SHIFT;
-        let count = get_child_count(node);
-        if group_start_point + count < group + 1 {
-            return Some((node, parent_state));
+        let count = get_child_count(parent_node);
+        let group_limit = group_start_point + count;
+        let group_position = group + 1;
+        if group_limit < group_position + 1 {
+            return Some((parent_node, parent_state));
         }
 
         let node = self.state_map.get(&state)?;
