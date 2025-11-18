@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use crate::ebnf::*;
 use std::iter::from_fn;
 use std::iter::Peekable;
 use std::rc::Rc;
@@ -8,39 +8,8 @@ type ParserIterator<'a> = Peekable<CharIndices<'a>>;
 
 const EOF: &str = "EOF";
 
-#[derive(Debug)]
-pub(crate) struct EBNF<'a> {
-    pub name: String,                            // 定義したルール名
-    expr: Rc<EBNFNode<'a>>,                      // ツリー構造(ルールの中身)
-    state_map: HashMap<usize, Rc<EBNFNode<'a>>>, // ルールの位置(状態)に応じたマップ
-}
-
-#[derive(Debug)]
-pub(crate) enum EBNFNode<'a> {
-    Expansion(&'a str),            // Hoge
-    Concat(Vec<Rc<EBNFNode<'a>>>), // Hoge Fuga
-    Or(Vec<Rc<EBNFNode<'a>>>),     // Hoge | Fuga
-    // Hoge? Hoge* Hoge+ Hoge{3} Hoge{7,} Hoge{2, 5}
-    Repeat {
-        node: Rc<EBNFNode<'a>>,
-        min: u64,
-        max: Option<u64>,
-    },
-    Group(Rc<EBNFNode<'a>>), // (Hoge)
-    Literal(&'a str),        // "hogefuga"
-}
-
-#[derive(Debug)]
-enum Quantifier {
-    Question,                 // ?
-    Plus,                     // +
-    Star,                     // *
-    Braces(u64, Option<u64>), // {
-}
-
 pub fn parse_ebnf<'a>(source: &'a str) -> Result<EBNF<'a>, String> {
     let mut iter = source.char_indices().peekable();
-
     parse_define(source, &mut iter).map_err(|e| e.error_message(source))
 }
 
@@ -49,9 +18,16 @@ fn parse_define<'a>(
     iter: &mut ParserIterator,
 ) -> Result<EBNF<'a>, EBNFParseError> {
     skip_space(iter);
-    let name = from_fn(|| iter.next_if(|c| c.1.is_alphabetic()))
-        .map(|c| c.1)
-        .collect::<String>();
+    let Some(c) = iter.peek() else {
+        return Err(EBNFParseError::UnexpectedEOF);
+    };
+    if !c.1.is_alphabetic() {
+        return Err(EBNFParseError::ParseDefineError {
+            position: get_position(iter),
+        });
+    }
+
+    let name = parse_and_slice(source, iter, |c| c.is_alphabetic() || c.is_ascii_digit())?;
 
     skip_space(iter);
     for expected_char in "::=".chars() {
@@ -277,20 +253,17 @@ fn parse_expansion<'a>(
     iter: &mut ParserIterator,
 ) -> Result<EBNFNode<'a>, EBNFParseError> {
     skip_space(iter);
-    let Some(&(start, _)) = iter.peek() else {
+
+    let Some(c) = iter.peek() else {
         return Err(EBNFParseError::UnexpectedEOF);
     };
-
-    let _ = from_fn(|| iter.next_if(|c| c.1.is_alphabetic() || c.1.is_ascii_digit())).count();
-    let end = iter.peek().map(|e| e.0).unwrap_or(source.len());
-
-    if start == end {
+    if !c.1.is_alphabetic() {
         return Err(EBNFParseError::ParseExpansionError {
             position: get_position(iter),
         });
     }
 
-    let name = &source[start..end];
+    let name = parse_and_slice(source, iter, |c| c.is_alphabetic() || c.is_ascii_digit())?;
 
     Ok(EBNFNode::Expansion(name))
 }
@@ -310,20 +283,7 @@ fn parse_literal<'a>(
     }
 
     skip_space(iter);
-    let Some(&(start, _)) = iter.peek() else {
-        return Err(EBNFParseError::UnexpectedEOF);
-    };
-
-    let _ = from_fn(|| iter.next_if(|c| !matches!(c.1, '"'))).count();
-    let end = iter.peek().map(|e| e.0).unwrap_or(source.len());
-
-    if start == end {
-        return Err(EBNFParseError::ParseIntError {
-            position: get_position(iter),
-        });
-    }
-
-    let literal = &source[start..end];
+    let literal = parse_and_slice(source, iter, |c| !matches!(c, '"'))?;
 
     skip_space(iter);
     if iter.next_if(|c| matches!(c.1, '"')).is_none() {
@@ -357,6 +317,28 @@ fn parse_integer(iter: &mut ParserIterator) -> Result<u64, EBNFParseError> {
     })
 }
 
+fn parse_and_slice<'a>(
+    source: &'a str,
+    iter: &mut ParserIterator,
+    condition: fn(char) -> bool,
+) -> Result<&'a str, EBNFParseError> {
+    let Some(&(start, _)) = iter.peek() else {
+        return Err(EBNFParseError::UnexpectedEOF);
+    };
+
+    let _ = from_fn(|| iter.next_if(|&(_, c)| condition(c))).count();
+    let end = iter.peek().map(|e| e.0).unwrap_or(source.len());
+
+    if start == end {
+        return Err(EBNFParseError::UnmatchToken {
+            current_token: get_token(iter),
+            position: get_position(iter),
+        });
+    }
+
+    Ok(&source[start..end])
+}
+
 fn skip_space(iter: &mut ParserIterator) {
     while iter.next_if(|c| c.1.is_whitespace()).is_some() {}
 }
@@ -382,6 +364,9 @@ enum EBNFParseError {
     },
     UnexpectedEOF,
     ParseIntError {
+        position: usize,
+    },
+    ParseDefineError {
         position: usize,
     },
     ParseExpansionError {
@@ -432,6 +417,13 @@ impl EBNFParseError {
 
             EBNFParseError::ParseExpansionError { position } => [
                 "can not parse expansion".to_string(),
+                input.to_string(),
+                format!("{}^", " ".repeat(*position)),
+            ]
+            .join("\n"),
+
+            EBNFParseError::ParseDefineError { position } => [
+                "can not parse define".to_string(),
                 input.to_string(),
                 format!("{}^", " ".repeat(*position)),
             ]

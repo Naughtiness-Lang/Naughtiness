@@ -1,0 +1,256 @@
+use std::collections::HashMap;
+use std::rc::Rc;
+
+pub type EBNFState = usize;
+pub type EBNFStateKey = u16;
+
+const DEPTH_BIT_SHIFT: usize = 48; // Y座標
+const GROUP_BIT_SHIFT: usize = 32; // X座標
+const PARENT_GROUP_BIT_SHIFT: usize = 16;
+const CHILDREN_GROUP_BIT_SHIFT: usize = 0;
+const BIT_MASK: EBNFState = 0xFF;
+const DEPTH_BIT_MASK: EBNFState = BIT_MASK << DEPTH_BIT_SHIFT;
+const CHILDREN_GROUP_BIT_MASK: EBNFState = BIT_MASK << CHILDREN_GROUP_BIT_SHIFT;
+const PARENT_GROUP_BIT_MASK: EBNFState = BIT_MASK << PARENT_GROUP_BIT_SHIFT;
+const GROUP_BIT_MASK: EBNFState = BIT_MASK << GROUP_BIT_SHIFT;
+
+#[derive(Debug)]
+pub(crate) struct EBNF<'a> {
+    pub name: &'a str,                               // 定義したルール名
+    expr: Rc<EBNFNode<'a>>,                          // ツリー構造(ルールの中身)
+    state_map: HashMap<EBNFState, Rc<EBNFNode<'a>>>, // ルールの位置(状態)に応じたマップ
+    key_map: HashMap<EBNFState, EBNFState>,          //
+}
+
+impl<'a> EBNF<'a> {
+    pub fn new(name: &'a str, expr: EBNFNode<'a>) -> Self {
+        let expr = Rc::new(expr);
+        let state_list = make_state_pair_list(&expr);
+        let mut state_map = HashMap::new();
+        let mut key_map = HashMap::new();
+        for (key, value) in state_list {
+            let state_key = key & (DEPTH_BIT_MASK | GROUP_BIT_MASK);
+            state_map.insert(state_key, value);
+            key_map.insert(state_key, key);
+        }
+
+        Self {
+            name,
+            expr,
+            state_map,
+            key_map,
+        }
+    }
+
+    pub fn get_node(&self, state: &EBNFState) -> Option<&EBNFNode<'a>> {
+        self.state_map.get(state).map(|node| &**node)
+    }
+
+    pub fn root(&self) -> EBNFState {
+        make_state_key(0, 0, 0, 0)
+    }
+
+    // 子のノードに移動する
+    // 子ノードがなければ同グループの隣のノードへ
+    // グループの末端かつ子ノードがなければ親ノードへ
+    pub fn step_in(&self, state: EBNFState) -> Option<(&EBNFNode<'a>, EBNFState)> {
+        let &state = self.key_map.get(&state)?;
+        let depth = (state & DEPTH_BIT_MASK) >> DEPTH_BIT_SHIFT;
+        let child_depth_key = (depth + 1) << DEPTH_BIT_SHIFT;
+        let child_group_key = state & CHILDREN_GROUP_BIT_MASK;
+        let child_state = child_depth_key | child_group_key;
+
+        let Some(node) = self.state_map.get(&child_state) else {
+            return self.step_over(state); // 子がいない場合はstep_overと同じ
+        };
+
+        Some((node, child_state))
+    }
+
+    // 親ノードに移動
+    pub fn step_out(&self, state: EBNFState) -> Option<(&EBNFNode<'a>, EBNFState)> {
+        let &state = self.key_map.get(&state)?;
+        let depth = (state & DEPTH_BIT_MASK) >> DEPTH_BIT_SHIFT;
+        if depth == 0 {
+            return None;
+        }
+
+        let parent_depth = depth - 1;
+        let parent_depth_key = parent_depth << DEPTH_BIT_SHIFT;
+        let parent_group_key = state & PARENT_GROUP_BIT_MASK;
+        let parent_state = parent_depth_key | parent_group_key;
+        let parent_node = self.state_map.get(&parent_state)?;
+
+        Some((parent_node, parent_state))
+    }
+
+    // 子ノードに入らずに同じグループ内の隣のノードへ
+    // グループの末端かつ子ノードがなければ親ノードへ
+    pub fn step_over(&self, state: EBNFState) -> Option<(&EBNFNode<'a>, EBNFState)> {
+        let &state = self.key_map.get(&state)?;
+        let depth_key = state & DEPTH_BIT_MASK;
+        let group = (state & GROUP_BIT_MASK) >> GROUP_BIT_SHIFT;
+        let next_group_key = (group + 1) << GROUP_BIT_SHIFT;
+
+        // 単純に1加算した値が次のグループかを判断できないので
+        // 親を参照し親のデータから次のグループに移動するかを判断する
+        let Some((node, parent_state)) = self.step_out(state) else {
+            // 親はいないが次のグループが存在する場合
+            let next_state = depth_key | next_group_key;
+            let node = self.state_map.get(&next_state)?;
+            return Some((node, next_state));
+        };
+
+        // 次のグループがない場合は親ノードへ
+        let group_start_point =
+            (parent_state & CHILDREN_GROUP_BIT_MASK) >> CHILDREN_GROUP_BIT_SHIFT;
+        let count = get_child_count(node);
+        if group_start_point + count < group + 1 {
+            return Some((node, parent_state));
+        }
+
+        let node = self.state_map.get(&state)?;
+        let next_state = depth_key | next_group_key;
+
+        Some((node, next_state))
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Hash)]
+pub(crate) enum EBNFNode<'a> {
+    Expansion(&'a str),            // Hoge
+    Concat(Vec<Rc<EBNFNode<'a>>>), // Hoge Fuga
+    Or(Vec<Rc<EBNFNode<'a>>>),     // Hoge | Fuga
+    // Hoge? Hoge* Hoge+ Hoge{3} Hoge{7,} Hoge{2, 5}
+    Repeat {
+        node: Rc<EBNFNode<'a>>,
+        min: u64,
+        max: Option<u64>,
+    },
+    Group(Rc<EBNFNode<'a>>), // (Hoge)
+    Literal(&'a str),        // "hogefuga"
+}
+
+#[derive(Debug)]
+pub(crate) enum Quantifier {
+    Question,                 // ?
+    Plus,                     // +
+    Star,                     // *
+    Braces(u64, Option<u64>), // {
+}
+
+fn make_state_key(
+    depth: EBNFStateKey,
+    group: EBNFStateKey,
+    parent_group: EBNFStateKey,
+    child_group: EBNFStateKey,
+) -> EBNFState {
+    let depth = (depth as EBNFState) << DEPTH_BIT_SHIFT;
+    let group = (group as EBNFState) << GROUP_BIT_SHIFT;
+    let parent_group = (parent_group as EBNFState) << PARENT_GROUP_BIT_SHIFT;
+    let child_group = (child_group as EBNFState) << CHILDREN_GROUP_BIT_SHIFT;
+    depth | group | parent_group | child_group
+}
+
+fn make_state_pair_list<'a>(expr: &Rc<EBNFNode<'a>>) -> Vec<(EBNFState, Rc<EBNFNode<'a>>)> {
+    let mut group_count_map = HashMap::new();
+    let mut vec = vec![];
+    let mut stack = vec![(expr.clone(), 0, 0)];
+    while let Some((current_node, depth, parent_group_number)) = stack.pop() {
+        let group_number = *group_count_map
+            .entry(depth)
+            .and_modify(|e| *e += 1)
+            .or_insert(0);
+        let child_group_number = group_count_map
+            .get(&(depth + 1))
+            .map(|e| *e + 1)
+            .unwrap_or(0);
+
+        match &*current_node {
+            EBNFNode::Expansion(_) => {
+                let key =
+                    make_state_key(depth, group_number, parent_group_number, child_group_number);
+                vec.push((key, current_node));
+            }
+            EBNFNode::Concat(nodes) => {
+                let key =
+                    make_state_key(depth, group_number, parent_group_number, child_group_number);
+                vec.push((key, current_node.clone()));
+
+                for node in nodes.iter().rev() {
+                    stack.push((node.clone(), depth + 1, group_number));
+                }
+            }
+            EBNFNode::Or(nodes) => {
+                let key =
+                    make_state_key(depth, group_number, parent_group_number, child_group_number);
+                vec.push((key, current_node.clone()));
+
+                for node in nodes.iter().rev() {
+                    stack.push((node.clone(), depth + 1, group_number));
+                }
+            }
+            EBNFNode::Repeat {
+                node,
+                min: _,
+                max: _,
+            } => {
+                let key = make_state_key(depth, group_number, parent_group_number, 1);
+                vec.push((key, current_node.clone()));
+                stack.push((node.clone(), depth + 1, group_number));
+            }
+            EBNFNode::Group(node) => {
+                let key = make_state_key(depth, group_number, parent_group_number, 1);
+                vec.push((key, current_node.clone()));
+                stack.push((node.clone(), depth + 1, group_number));
+            }
+            EBNFNode::Literal(_) => {
+                let key = make_state_key(depth, group_number, parent_group_number, 0);
+                vec.push((key, current_node));
+            }
+        }
+    }
+
+    vec.into_iter().collect()
+}
+
+pub fn normalize_ebnf<'a>(node: &EBNFNode<'a>) -> String {
+    match node {
+        EBNFNode::Expansion(expansion) => expansion.to_string(),
+        EBNFNode::Concat(nodes) => nodes
+            .iter()
+            .map(|node| normalize_ebnf(node))
+            .collect::<Vec<String>>()
+            .join(" "),
+        EBNFNode::Or(nodes) => nodes
+            .iter()
+            .map(|node| normalize_ebnf(node))
+            .collect::<Vec<String>>()
+            .join(" | "),
+
+        EBNFNode::Repeat { node, min, max } => {
+            format!("{}{min:?}, {max:?}", normalize_ebnf(node))
+        }
+        EBNFNode::Group(node) => {
+            format!("( {} )", normalize_ebnf(node))
+        }
+        EBNFNode::Literal(literal) => {
+            format!("\"{literal}\"")
+        }
+    }
+}
+
+fn get_child_count<'a>(node: &EBNFNode<'a>) -> usize {
+    match node {
+        EBNFNode::Expansion(_) => 0,
+        EBNFNode::Or(nodes) => nodes.len(),
+        EBNFNode::Concat(nodes) => nodes.len(),
+        EBNFNode::Repeat {
+            node: _,
+            min: _,
+            max: _,
+        } => 1,
+        EBNFNode::Group(_) => 1,
+        EBNFNode::Literal(_) => 0,
+    }
+}
