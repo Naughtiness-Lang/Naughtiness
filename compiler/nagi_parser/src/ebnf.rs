@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::rc::Rc;
 
-pub type EBNFState = usize;
+pub type EBNFState = u64;
 pub type EBNFStateKey = u16;
 
 const DEPTH_BIT_SHIFT: usize = 48; // Y座標
