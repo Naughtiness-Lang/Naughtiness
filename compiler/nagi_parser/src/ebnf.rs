@@ -104,7 +104,7 @@ impl<'a> EBNF<'a> {
         // 次のグループがない場合は親ノードへ
         let group_start_point =
             (parent_state & CHILDREN_GROUP_BIT_MASK) >> CHILDREN_GROUP_BIT_SHIFT;
-        let count = get_child_count(parent_node);
+        let count = get_child_count(parent_node) as u64;
         let group_limit = group_start_point + count;
         let group_position = group + 1;
         if group_limit < group_position + 1 {
