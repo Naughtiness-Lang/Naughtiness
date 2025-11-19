@@ -4,8 +4,8 @@ use std::rc::Rc;
 pub type EBNFState = u64;
 pub type EBNFStateKey = u16;
 
-const DEPTH_BIT_SHIFT: usize = 48; // Y座標
-const GROUP_BIT_SHIFT: usize = 32; // X座標
+const DEPTH_BIT_SHIFT: usize = 48; // ツリーの深さ
+const GROUP_BIT_SHIFT: usize = 32; // 同じ深さにおけるグループ番号
 const PARENT_GROUP_BIT_SHIFT: usize = 16;
 const CHILDREN_GROUP_BIT_SHIFT: usize = 0;
 const BIT_MASK: EBNFState = 0xFFFF;
