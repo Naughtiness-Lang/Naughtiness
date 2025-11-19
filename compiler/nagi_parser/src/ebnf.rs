@@ -19,7 +19,7 @@ pub(crate) struct EBNF<'a> {
     pub name: &'a str,                               // 定義したルール名
     expr: Rc<EBNFNode<'a>>,                          // ツリー構造(ルールの中身)
     state_map: HashMap<EBNFState, Rc<EBNFNode<'a>>>, // ルールの位置(状態)に応じたマップ
-    key_map: HashMap<EBNFState, EBNFState>,          //
+    full_state_map: HashMap<EBNFState, EBNFState>,   //
 }
 
 impl<'a> EBNF<'a> {
@@ -27,18 +27,18 @@ impl<'a> EBNF<'a> {
         let expr = Rc::new(expr);
         let state_list = make_state_pair_list(&expr);
         let mut state_map = HashMap::new();
-        let mut key_map = HashMap::new();
+        let mut full_state_map = HashMap::new();
         for (key, value) in state_list {
             let state_key = key & (DEPTH_BIT_MASK | GROUP_BIT_MASK);
             state_map.insert(state_key, value);
-            key_map.insert(state_key, key);
+            full_state_map.insert(state_key, key);
         }
 
         Self {
             name,
             expr,
             state_map,
-            key_map,
+            full_state_map,
         }
     }
 
@@ -54,7 +54,7 @@ impl<'a> EBNF<'a> {
     // 子ノードがなければ同グループの隣のノードへ
     // グループの末端かつ子ノードがなければ親ノードへ
     pub fn step_in(&self, state: EBNFState) -> Option<(&EBNFNode<'a>, EBNFState)> {
-        let &state = self.key_map.get(&state)?;
+        let &state = self.full_state_map.get(&state)?;
         let depth = (state & DEPTH_BIT_MASK) >> DEPTH_BIT_SHIFT;
         let child_depth_key = (depth + 1) << DEPTH_BIT_SHIFT;
         let child_group_key = state & CHILDREN_GROUP_BIT_MASK;
@@ -69,7 +69,7 @@ impl<'a> EBNF<'a> {
 
     // 親ノードに移動
     pub fn step_out(&self, state: EBNFState) -> Option<(&EBNFNode<'a>, EBNFState)> {
-        let &state = self.key_map.get(&state)?;
+        let &state = self.full_state_map.get(&state)?;
         let depth = (state & DEPTH_BIT_MASK) >> DEPTH_BIT_SHIFT;
         if depth == 0 {
             return None;
@@ -87,7 +87,7 @@ impl<'a> EBNF<'a> {
     // 子ノードに入らずに同じグループ内の隣のノードへ
     // グループの末端かつ子ノードがなければ親ノードへ
     pub fn step_over(&self, state: EBNFState) -> Option<(&EBNFNode<'a>, EBNFState)> {
-        let &state = self.key_map.get(&state)?;
+        let &state = self.full_state_map.get(&state)?;
         let depth_key = state & DEPTH_BIT_MASK;
         let group = (state & GROUP_BIT_MASK) >> GROUP_BIT_SHIFT;
         let next_group_key = (group + 1) << GROUP_BIT_SHIFT;
