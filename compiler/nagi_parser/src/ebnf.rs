@@ -54,10 +54,11 @@ impl<'a> EBNF<'a> {
     // 子ノードがなければ同グループの隣のノードへ
     // グループの末端かつ子ノードがなければ親ノードへ
     pub fn step_in(&self, state: EBNFState) -> Option<(&EBNFNode<'a>, EBNFState)> {
-        let &state = self.full_state_map.get(&state)?;
-        let depth = (state & DEPTH_BIT_MASK) >> DEPTH_BIT_SHIFT;
+        let state = state & (DEPTH_BIT_MASK | GROUP_BIT_MASK);
+        let &full_state = self.full_state_map.get(&state)?;
+        let depth = (full_state & DEPTH_BIT_MASK) >> DEPTH_BIT_SHIFT;
         let child_depth_key = (depth + 1) << DEPTH_BIT_SHIFT;
-        let child_group_key = state & CHILDREN_GROUP_BIT_MASK;
+        let child_group_key = full_state & CHILDREN_GROUP_BIT_MASK;
         let child_state = child_depth_key | child_group_key;
 
         let Some(node) = self.state_map.get(&child_state) else {
@@ -69,15 +70,16 @@ impl<'a> EBNF<'a> {
 
     // 親ノードに移動
     pub fn step_out(&self, state: EBNFState) -> Option<(&EBNFNode<'a>, EBNFState)> {
-        let &state = self.full_state_map.get(&state)?;
-        let depth = (state & DEPTH_BIT_MASK) >> DEPTH_BIT_SHIFT;
+        let state = state & (DEPTH_BIT_MASK | GROUP_BIT_MASK);
+        let &full_state = self.full_state_map.get(&state)?;
+        let depth = (full_state & DEPTH_BIT_MASK) >> DEPTH_BIT_SHIFT;
         if depth == 0 {
             return None;
         }
 
         let parent_depth = depth - 1;
         let parent_depth_key = parent_depth << DEPTH_BIT_SHIFT;
-        let parent_group_key = state & PARENT_GROUP_BIT_MASK;
+        let parent_group_key = full_state & PARENT_GROUP_BIT_MASK;
         let parent_state = parent_depth_key | parent_group_key;
         let parent_node = self.state_map.get(&parent_state)?;
 
@@ -87,9 +89,10 @@ impl<'a> EBNF<'a> {
     // 子ノードに入らずに同じグループ内の隣のノードへ
     // グループの末端かつ子ノードがなければ親ノードへ
     pub fn step_over(&self, state: EBNFState) -> Option<(&EBNFNode<'a>, EBNFState)> {
-        let &state = self.full_state_map.get(&state)?;
-        let depth_key = state & DEPTH_BIT_MASK;
-        let group = (state & GROUP_BIT_MASK) >> GROUP_BIT_SHIFT;
+        let state = state & (DEPTH_BIT_MASK | GROUP_BIT_MASK);
+        let &full_state = self.full_state_map.get(&state)?;
+        let depth_key = full_state & DEPTH_BIT_MASK;
+        let group = (full_state & GROUP_BIT_MASK) >> GROUP_BIT_SHIFT;
         let next_group_key = (group + 1) << GROUP_BIT_SHIFT;
 
         // 単純に1加算した値が次のグループかを判断できないので
