@@ -19,7 +19,7 @@ pub(crate) struct EBNF<'a> {
     pub name: &'a str,                               // 定義したルール名
     expr: Rc<EBNFNode<'a>>,                          // ツリー構造(ルールの中身)
     state_map: HashMap<EBNFState, Rc<EBNFNode<'a>>>, // ルールの位置(状態)に応じたマップ
-    full_state_map: HashMap<EBNFState, EBNFState>,   //
+    full_state_map: HashMap<EBNFState, EBNFState>,   // 部分的な状態キーから完全な状態へのマップ
 }
 
 impl<'a> EBNF<'a> {
