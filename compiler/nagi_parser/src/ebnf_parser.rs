@@ -310,6 +310,7 @@ fn parse_literal<'a>(
 // Digit ::= "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" ;
 fn parse_integer(iter: &mut ParserIterator) -> Result<u64, EBNFParseError> {
     skip_space(iter);
+    let position = get_position(iter);
     let token = from_fn(|| iter.next_if(|c| c.1.is_ascii_digit()))
         .map(|c| c.1)
         .collect::<String>();
@@ -321,9 +322,9 @@ fn parse_integer(iter: &mut ParserIterator) -> Result<u64, EBNFParseError> {
         });
     }
 
-    token.parse().map_err(|_| EBNFParseError::ParseIntError {
-        position: get_position(iter),
-    })
+    token
+        .parse()
+        .map_err(|_| EBNFParseError::ParseIntError { position })
 }
 
 fn parse_and_slice<'a>(
