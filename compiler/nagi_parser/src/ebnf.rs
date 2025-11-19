@@ -115,8 +115,8 @@ impl<'a> EBNF<'a> {
             return Some((parent_node, parent_state));
         }
 
-        let node = self.state_map.get(&state)?;
         let next_state = depth_key | next_group_key;
+        let node = self.state_map.get(&next_state)?;
 
         Some((node, next_state))
     }
