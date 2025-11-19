@@ -90,7 +90,7 @@ impl<'a> EBNF<'a> {
         };
 
         // 次のグループがない場合親ノードへ
-        let &full_parent_state = self.full_state_map.get(&parent_state).unwrap();
+        let &full_parent_state = self.full_state_map.get(&parent_state)?;
         let group_start_point =
             (full_parent_state & CHILDREN_GROUP_BIT_MASK) >> CHILDREN_GROUP_BIT_SHIFT;
         let parent_node = self.get_node(&parent_state)?;
