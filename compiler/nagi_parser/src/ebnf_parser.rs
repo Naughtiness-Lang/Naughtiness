@@ -23,7 +23,7 @@ fn parse_define<'a>(
     };
     if !c.1.is_alphabetic() {
         return Err(EBNFParseError::ParseDefineError {
-            position: get_position(iter),
+            position: get_position(iter, source.len()),
         });
     }
 
@@ -35,7 +35,7 @@ fn parse_define<'a>(
             return Err(EBNFParseError::UnexpectedToken {
                 expect_token: expected_char,
                 unexpected_token: get_token(iter),
-                position: get_position(iter),
+                position: get_position(iter, source.len()),
             });
         }
     }
@@ -46,7 +46,7 @@ fn parse_define<'a>(
     if iter.peek().is_some() {
         return Err(EBNFParseError::UnmatchToken {
             current_token: get_token(iter),
-            position: get_position(iter),
+            position: get_position(iter, source.len()),
         });
     }
 
@@ -128,7 +128,7 @@ fn parse_repeat<'a>(
         return Ok(node);
     }
 
-    let quantifier = parse_quantifier(iter)?;
+    let quantifier = parse_quantifier(iter, source)?;
     let node = Rc::new(node);
     Ok(match quantifier {
         Quantifier::Plus => EBNFNode::Repeat {
@@ -151,7 +151,7 @@ fn parse_repeat<'a>(
 }
 
 // Quantifier ::= "?" | "*" | "+" | "{" Integer [ "," [ Integer ] ] "}" ;
-fn parse_quantifier(iter: &mut ParserIterator) -> Result<Quantifier, EBNFParseError> {
+fn parse_quantifier(iter: &mut ParserIterator, source: &str) -> Result<Quantifier, EBNFParseError> {
     skip_space(iter);
     let t = iter.peek().ok_or(EBNFParseError::UnexpectedEOF)?;
     let res = match t.1 {
@@ -170,7 +170,7 @@ fn parse_quantifier(iter: &mut ParserIterator) -> Result<Quantifier, EBNFParseEr
         '{' => {
             iter.next();
 
-            let start = parse_integer(iter)?;
+            let start = parse_integer(iter, source)?;
             let mut end = Some(start);
 
             skip_space(iter);
@@ -181,7 +181,7 @@ fn parse_quantifier(iter: &mut ParserIterator) -> Result<Quantifier, EBNFParseEr
                 };
 
                 end = if c.is_ascii_digit() {
-                    Some(parse_integer(iter)?)
+                    Some(parse_integer(iter, source)?)
                 } else {
                     None
                 };
@@ -192,7 +192,7 @@ fn parse_quantifier(iter: &mut ParserIterator) -> Result<Quantifier, EBNFParseEr
                 return Err(EBNFParseError::UnexpectedToken {
                     expect_token: '}',
                     unexpected_token: get_token(iter),
-                    position: get_position(iter),
+                    position: get_position(iter, source.len()),
                 });
             }
 
@@ -202,7 +202,7 @@ fn parse_quantifier(iter: &mut ParserIterator) -> Result<Quantifier, EBNFParseEr
         _ => {
             return Err(EBNFParseError::UnmatchToken {
                 current_token: get_token(iter),
-                position: get_position(iter),
+                position: get_position(iter, source.len()),
             })
         }
     };
@@ -226,7 +226,7 @@ fn parse_primary<'a>(
         _ if c.is_alphabetic() => parse_expansion(source, iter),
         _ => Err(EBNFParseError::UnmatchToken {
             current_token: get_token(iter),
-            position: get_position(iter),
+            position: get_position(iter, source.len()),
         }),
     }
 }
@@ -241,7 +241,7 @@ fn parse_group<'a>(
         return Err(EBNFParseError::UnexpectedToken {
             expect_token: '(',
             unexpected_token: get_token(iter),
-            position: get_position(iter),
+            position: get_position(iter, source.len()),
         });
     }
 
@@ -252,7 +252,7 @@ fn parse_group<'a>(
         return Err(EBNFParseError::UnexpectedToken {
             expect_token: ')',
             unexpected_token: get_token(iter),
-            position: get_position(iter),
+            position: get_position(iter, source.len()),
         });
     }
 
@@ -270,7 +270,7 @@ fn parse_expansion<'a>(
     };
     if !c.1.is_alphabetic() {
         return Err(EBNFParseError::ParseExpansionError {
-            position: get_position(iter),
+            position: get_position(iter, source.len()),
         });
     }
 
@@ -289,7 +289,7 @@ fn parse_literal<'a>(
         return Err(EBNFParseError::UnexpectedToken {
             expect_token: '"',
             unexpected_token: get_token(iter),
-            position: get_position(iter),
+            position: get_position(iter, source.len()),
         });
     }
 
@@ -299,7 +299,7 @@ fn parse_literal<'a>(
         return Err(EBNFParseError::UnexpectedToken {
             expect_token: '"',
             unexpected_token: get_token(iter),
-            position: get_position(iter),
+            position: get_position(iter, source.len()),
         });
     }
 
@@ -308,9 +308,9 @@ fn parse_literal<'a>(
 
 // Integer ::= Digit { Digit } ;
 // Digit ::= "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" ;
-fn parse_integer(iter: &mut ParserIterator) -> Result<u64, EBNFParseError> {
+fn parse_integer(iter: &mut ParserIterator, source: &str) -> Result<u64, EBNFParseError> {
     skip_space(iter);
-    let position = get_position(iter);
+    let position = get_position(iter, source.len());
     let token = from_fn(|| iter.next_if(|c| c.1.is_ascii_digit()))
         .map(|c| c.1)
         .collect::<String>();
@@ -318,7 +318,7 @@ fn parse_integer(iter: &mut ParserIterator) -> Result<u64, EBNFParseError> {
     if token.is_empty() {
         return Err(EBNFParseError::UnmatchToken {
             current_token: get_token(iter),
-            position: get_position(iter),
+            position: get_position(iter, source.len()),
         });
     }
 
@@ -342,7 +342,7 @@ fn parse_and_slice<'a>(
     if start == end {
         return Err(EBNFParseError::UnmatchToken {
             current_token: get_token(iter),
-            position: get_position(iter),
+            position: get_position(iter, source.len()),
         });
     }
 
@@ -357,8 +357,8 @@ fn get_token(iter: &mut ParserIterator) -> String {
     iter.peek().map_or(EOF.to_string(), |c| c.1.to_string())
 }
 
-fn get_position(iter: &mut ParserIterator) -> usize {
-    iter.peek().map_or(0, |c| c.0)
+fn get_position(iter: &mut ParserIterator, source_len: usize) -> usize {
+    iter.peek().map_or(source_len, |c| c.0)
 }
 
 #[derive(Debug)]
@@ -394,7 +394,7 @@ impl EBNFParseError {
             } => [
                 format!("unexpected token: {unexpected_token}"),
                 input.to_string(),
-                Self::make_token_position(input, *position, unexpected_token),
+                format!("{}^", " ".repeat(*position)),
                 format!("expect token: {expect_token}"),
             ]
             .join("\n"),
@@ -405,7 +405,7 @@ impl EBNFParseError {
             } => [
                 format!("unmatch token: {current_token}"),
                 input.to_string(),
-                Self::make_token_position(input, *position, current_token),
+                format!("{}^", " ".repeat(*position)),
             ]
             .join("\n"),
 
@@ -430,14 +430,6 @@ impl EBNFParseError {
                 format!("{}^", " ".repeat(*position)),
             ]
             .join("\n"),
-        }
-    }
-
-    fn make_token_position(input: &str, position: usize, token: &str) -> String {
-        if token == EOF {
-            format!("{}^", " ".repeat(input.len()))
-        } else {
-            format!("{}^", " ".repeat(position))
         }
     }
 }
