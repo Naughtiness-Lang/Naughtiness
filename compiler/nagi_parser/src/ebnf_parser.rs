@@ -118,29 +118,36 @@ fn parse_repeat<'a>(
     iter: &mut ParserIterator,
 ) -> Result<EBNFNode<'a>, EBNFParseError> {
     let node = parse_primary(source, iter)?;
-    if let Ok(quantifier) = parse_quantifier(iter) {
-        let node = Rc::new(node);
-        return Ok(match quantifier {
-            Quantifier::Plus => EBNFNode::Repeat {
-                node,
-                min: 1,
-                max: None,
-            },
-            Quantifier::Star => EBNFNode::Repeat {
-                node,
-                min: 0,
-                max: None,
-            },
-            Quantifier::Question => EBNFNode::Repeat {
-                node,
-                min: 0,
-                max: Some(1),
-            },
-            Quantifier::Braces(min, max) => EBNFNode::Repeat { node, min, max },
-        });
+
+    skip_space(iter);
+    let Some(c) = iter.peek() else {
+        return Ok(node);
+    };
+
+    if !matches!(c.1, '+' | '*' | '?' | '{') {
+        return Ok(node);
     }
 
-    Ok(node)
+    let quantifier = parse_quantifier(iter)?;
+    let node = Rc::new(node);
+    Ok(match quantifier {
+        Quantifier::Plus => EBNFNode::Repeat {
+            node,
+            min: 1,
+            max: None,
+        },
+        Quantifier::Star => EBNFNode::Repeat {
+            node,
+            min: 0,
+            max: None,
+        },
+        Quantifier::Question => EBNFNode::Repeat {
+            node,
+            min: 0,
+            max: Some(1),
+        },
+        Quantifier::Braces(min, max) => EBNFNode::Repeat { node, min, max },
+    })
 }
 
 // Quantifier ::= "?" | "*" | "+" | "{" Integer [ "," [ Integer ] ] "}" ;
