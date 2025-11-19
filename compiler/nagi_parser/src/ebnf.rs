@@ -79,7 +79,8 @@ impl<'a> EBNF<'a> {
 
         let parent_depth = depth - 1;
         let parent_depth_key = parent_depth << DEPTH_BIT_SHIFT;
-        let parent_group_key = full_state & PARENT_GROUP_BIT_MASK;
+        let parent_group_number = (full_state & PARENT_GROUP_BIT_MASK) >> PARENT_GROUP_BIT_SHIFT;
+        let parent_group_key = parent_group_number << GROUP_BIT_SHIFT;
         let parent_state = parent_depth_key | parent_group_key;
         let parent_node = self.state_map.get(&parent_state)?;
 
