@@ -155,9 +155,18 @@ fn parse_quantifier(iter: &mut ParserIterator) -> Result<Quantifier, EBNFParseEr
     skip_space(iter);
     let t = iter.peek().ok_or(EBNFParseError::UnexpectedEOF)?;
     let res = match t.1 {
-        '?' => Quantifier::Question,
-        '*' => Quantifier::Star,
-        '+' => Quantifier::Plus,
+        '?' => {
+            iter.next();
+            Quantifier::Question
+        }
+        '*' => {
+            iter.next();
+            Quantifier::Star
+        }
+        '+' => {
+            iter.next();
+            Quantifier::Plus
+        }
         '{' => {
             iter.next();
 
@@ -195,13 +204,6 @@ fn parse_quantifier(iter: &mut ParserIterator) -> Result<Quantifier, EBNFParseEr
             })
         }
     };
-
-    if matches!(
-        res,
-        Quantifier::Plus | Quantifier::Star | Quantifier::Question
-    ) {
-        iter.next();
-    }
 
     Ok(res)
 }
