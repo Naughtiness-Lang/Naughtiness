@@ -194,8 +194,7 @@ fn make_state_pair_list<'a>(expr: &Rc<EBNFNode<'a>>) -> Vec<(EBNFState, Rc<EBNFN
 
         match &*current_node {
             EBNFNode::Expansion(_) => {
-                let key =
-                    make_state_key(depth, group_number, parent_group_number, child_group_number);
+                let key = make_state_key(depth, group_number, parent_group_number, 0);
                 vec.push((key, current_node));
             }
             EBNFNode::Concat(nodes) | EBNFNode::Or(nodes) => {
