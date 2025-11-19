@@ -50,6 +50,63 @@ impl<'a> EBNF<'a> {
         make_state_key(0, 0, 0, 0)
     }
 
+    // 親ノードに移動
+    pub fn parent(&self, state: EBNFState) -> Option<EBNFState> {
+        let state = state & (DEPTH_BIT_MASK | GROUP_BIT_MASK);
+        let &full_state = self.full_state_map.get(&state)?;
+        let depth = (full_state & DEPTH_BIT_MASK) >> DEPTH_BIT_SHIFT;
+        if depth == 0 {
+            return None;
+        }
+
+        let parent_depth = depth - 1;
+        let parent_depth_key = parent_depth << DEPTH_BIT_SHIFT;
+        let parent_group_number = (full_state & PARENT_GROUP_BIT_MASK) >> PARENT_GROUP_BIT_SHIFT;
+        let parent_group_key = parent_group_number << GROUP_BIT_SHIFT;
+
+        Some(parent_depth_key | parent_group_key)
+    }
+
+    // 隣のノードへ移動
+    // 同じグループの末端であれば親ノードの隣のノードへ
+    // その親が末端であればさらにその親を見ていく
+    pub fn next_group(&self, state: EBNFState) -> Option<EBNFState> {
+        let state = state & (DEPTH_BIT_MASK | GROUP_BIT_MASK);
+        let &full_state = self.full_state_map.get(&state)?;
+        let depth_key = full_state & DEPTH_BIT_MASK;
+        let group = (full_state & GROUP_BIT_MASK) >> GROUP_BIT_SHIFT;
+        let next_group_key = (group + 1) << GROUP_BIT_SHIFT;
+
+        // 単純に1加算した値が次のグループかを判断できないので
+        // 親を参照し親のデータから次のグループに移動するかを判断する
+        let Some(parent_state) = self.parent(state) else {
+            // 親はいないが次のグループが存在する場合
+            let next_state = depth_key | next_group_key;
+            return if self.state_map.contains_key(&next_state) {
+                Some(next_state)
+            } else {
+                None
+            };
+        };
+
+        // 次のグループがない場合親ノードへ
+        let &full_parent_state = self.full_state_map.get(&parent_state).unwrap();
+        let group_start_point =
+            (full_parent_state & CHILDREN_GROUP_BIT_MASK) >> CHILDREN_GROUP_BIT_SHIFT;
+        let parent_node = self.get_node(&parent_state)?;
+        let count = get_child_count(parent_node) as u64;
+        let group_limit = group_start_point + count;
+        let group_position = group + 1;
+        if group_limit < group_position + 1 {
+            // グループが存在しない場合はさらに親を見る
+            return self.next_group(parent_state);
+        }
+
+        let next_state = depth_key | next_group_key;
+
+        Some(next_state)
+    }
+
     // 子のノードに移動する
     // 子ノードがなければ同グループの隣のノードへ
     // グループの末端かつ子ノードがなければ親ノードへ
@@ -68,57 +125,20 @@ impl<'a> EBNF<'a> {
         Some((node, child_state))
     }
 
-    // 親ノードに移動
+    // 親ノードの隣のノードへ移動
     pub fn step_out(&self, state: EBNFState) -> Option<(&EBNFNode<'a>, EBNFState)> {
-        let state = state & (DEPTH_BIT_MASK | GROUP_BIT_MASK);
-        let &full_state = self.full_state_map.get(&state)?;
-        let depth = (full_state & DEPTH_BIT_MASK) >> DEPTH_BIT_SHIFT;
-        if depth == 0 {
-            return None;
-        }
-
-        let parent_depth = depth - 1;
-        let parent_depth_key = parent_depth << DEPTH_BIT_SHIFT;
-        let parent_group_number = (full_state & PARENT_GROUP_BIT_MASK) >> PARENT_GROUP_BIT_SHIFT;
-        let parent_group_key = parent_group_number << GROUP_BIT_SHIFT;
-        let parent_state = parent_depth_key | parent_group_key;
-        let parent_node = self.state_map.get(&parent_state)?;
-
-        Some((parent_node, parent_state))
+        let parent_state = self.parent(state)?;
+        let parent_next_state = self.next_group(parent_state)?;
+        let parent_next_node = self.get_node(&parent_next_state)?;
+        Some((parent_next_node, parent_next_state))
     }
 
-    // 子ノードに入らずに同じグループ内の隣のノードへ
-    // グループの末端かつ子ノードがなければ親ノードへ
+    // 同じグループ内の隣のノードへ
+    // 同じグループの末端であれば親ノードの隣へ
     pub fn step_over(&self, state: EBNFState) -> Option<(&EBNFNode<'a>, EBNFState)> {
-        let state = state & (DEPTH_BIT_MASK | GROUP_BIT_MASK);
-        let &full_state = self.full_state_map.get(&state)?;
-        let depth_key = full_state & DEPTH_BIT_MASK;
-        let group = (full_state & GROUP_BIT_MASK) >> GROUP_BIT_SHIFT;
-        let next_group_key = (group + 1) << GROUP_BIT_SHIFT;
-
-        // 単純に1加算した値が次のグループかを判断できないので
-        // 親を参照し親のデータから次のグループに移動するかを判断する
-        let Some((parent_node, parent_state)) = self.step_out(state) else {
-            // 親はいないが次のグループが存在する場合
-            let next_state = depth_key | next_group_key;
-            let node = self.state_map.get(&next_state)?;
-            return Some((node, next_state));
-        };
-
-        // 次のグループがない場合は親ノードへ
-        let group_start_point =
-            (parent_state & CHILDREN_GROUP_BIT_MASK) >> CHILDREN_GROUP_BIT_SHIFT;
-        let count = get_child_count(parent_node) as u64;
-        let group_limit = group_start_point + count;
-        let group_position = group + 1;
-        if group_limit < group_position + 1 {
-            return Some((parent_node, parent_state));
-        }
-
-        let next_state = depth_key | next_group_key;
-        let node = self.state_map.get(&next_state)?;
-
-        Some((node, next_state))
+        let next_state = self.next_group(state)?;
+        let next_node = self.get_node(&next_state)?;
+        Some((next_node, next_state))
     }
 }
 
