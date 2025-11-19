@@ -391,7 +391,7 @@ impl EBNFParseError {
             } => [
                 format!("unexpected token: {unexpected_token}"),
                 input.to_string(),
-                format!("{}^", " ".repeat(*position)),
+                Self::make_token_position(input, *position, unexpected_token),
                 format!("expect token: {expect_token}"),
             ]
             .join("\n"),
@@ -399,20 +399,12 @@ impl EBNFParseError {
             EBNFParseError::UnmatchToken {
                 current_token,
                 position,
-            } => {
-                let position = if current_token == EOF {
-                    input.len()
-                } else {
-                    *position
-                };
-
-                [
-                    format!("unmatch token: {current_token}"),
-                    input.to_string(),
-                    format!("{}^", " ".repeat(position)),
-                ]
-                .join("\n")
-            }
+            } => [
+                format!("unmatch token: {current_token}"),
+                input.to_string(),
+                Self::make_token_position(input, *position, current_token),
+            ]
+            .join("\n"),
 
             EBNFParseError::UnexpectedEOF => "unexpected EOF".to_string(),
             EBNFParseError::ParseIntError { position } => [
@@ -435,6 +427,14 @@ impl EBNFParseError {
                 format!("{}^", " ".repeat(*position)),
             ]
             .join("\n"),
+        }
+    }
+
+    fn make_token_position(input: &str, position: usize, token: &str) -> String {
+        if token == EOF {
+            format!("{}^", " ".repeat(input.len()))
+        } else {
+            format!("{}^", " ".repeat(position))
         }
     }
 }
