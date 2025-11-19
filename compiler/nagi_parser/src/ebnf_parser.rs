@@ -293,10 +293,8 @@ fn parse_literal<'a>(
         });
     }
 
-    skip_space(iter);
     let literal = parse_and_slice(source, iter, |c| !matches!(c, '"'))?;
 
-    skip_space(iter);
     if iter.next_if(|c| matches!(c.1, '"')).is_none() {
         return Err(EBNFParseError::UnexpectedToken {
             expect_token: '"',
