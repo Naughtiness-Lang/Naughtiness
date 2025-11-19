@@ -221,32 +221,6 @@ fn make_state_pair_list<'a>(expr: &Rc<EBNFNode<'a>>) -> Vec<(EBNFState, Rc<EBNFN
     vec.into_iter().collect()
 }
 
-pub fn normalize_ebnf<'a>(node: &EBNFNode<'a>) -> String {
-    match node {
-        EBNFNode::Expansion(expansion) => expansion.to_string(),
-        EBNFNode::Concat(nodes) => nodes
-            .iter()
-            .map(|node| normalize_ebnf(node))
-            .collect::<Vec<String>>()
-            .join(" "),
-        EBNFNode::Or(nodes) => nodes
-            .iter()
-            .map(|node| normalize_ebnf(node))
-            .collect::<Vec<String>>()
-            .join(" | "),
-
-        EBNFNode::Repeat { node, min, max } => {
-            format!("{}{min:?}, {max:?}", normalize_ebnf(node))
-        }
-        EBNFNode::Group(node) => {
-            format!("( {} )", normalize_ebnf(node))
-        }
-        EBNFNode::Literal(literal) => {
-            format!("\"{literal}\"")
-        }
-    }
-}
-
 fn get_child_count<'a>(node: &EBNFNode<'a>) -> usize {
     match node {
         EBNFNode::Expansion(_) => 0,
