@@ -178,16 +178,7 @@ fn make_state_pair_list<'a>(expr: &Rc<EBNFNode<'a>>) -> Vec<(EBNFState, Rc<EBNFN
                     make_state_key(depth, group_number, parent_group_number, child_group_number);
                 vec.push((key, current_node));
             }
-            EBNFNode::Concat(nodes) => {
-                let key =
-                    make_state_key(depth, group_number, parent_group_number, child_group_number);
-                vec.push((key, current_node.clone()));
-
-                for node in nodes.iter().rev() {
-                    stack.push((node.clone(), depth + 1, group_number));
-                }
-            }
-            EBNFNode::Or(nodes) => {
+            EBNFNode::Concat(nodes) | EBNFNode::Or(nodes) => {
                 let key =
                     make_state_key(depth, group_number, parent_group_number, child_group_number);
                 vec.push((key, current_node.clone()));
