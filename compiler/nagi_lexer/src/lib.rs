@@ -164,7 +164,7 @@ fn eat_line_break<'a>(iter: &mut Iter) -> Result<Token<'a>, String> {
 fn slice_code<'a>(
     source_code: &'a str,
     iter: &mut Iter,
-    condition: fn(char) -> bool,
+    condition: impl Fn(char) -> bool,
 ) -> Result<&'a str, String> {
     let Some(&(start, _)) = iter.peek() else {
         unreachable!();
