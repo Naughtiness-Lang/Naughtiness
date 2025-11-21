@@ -9,7 +9,6 @@ pub enum TokenKind {
     Identifier(String),
     Number(String),
     Symbol(Symbol),
-    Space(String),
     LineBreak(Vec<LineBreak>),
     WhiteSpace(Vec<Space>),
 }
