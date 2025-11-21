@@ -135,10 +135,10 @@ fn eat_space(iter: &mut Iter) -> Result<Token, String> {
     };
 
     let code = from_fn(|| iter.next_if(|c| matches!(c.1, ' ' | '\t')))
-        .filter_map(|c| match c.1 {
-            ' ' => Some(Space::Space),
-            '\t' => Some(Space::Tab),
-            _ => None,
+        .map(|c| match c.1 {
+            ' ' => Space::Space,
+            '\t' => Space::Tab,
+            _ => unreachable!(),
         })
         .collect();
 
@@ -154,10 +154,10 @@ fn eat_line_break(iter: &mut Iter) -> Result<Token, String> {
     };
 
     let code = from_fn(|| iter.next_if(|c| matches!(c.1, '\n' | '\r')))
-        .filter_map(|c| match c.1 {
-            '\r' => Some(LineBreak::CR),
-            '\n' => Some(LineBreak::LF),
-            _ => None,
+        .map(|c| match c.1 {
+            '\r' => LineBreak::CR,
+            '\n' => LineBreak::LF,
+            _ => unreachable!(),
         })
         .collect();
 
