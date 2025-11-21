@@ -125,7 +125,7 @@ fn eat_whitespace(iter: &mut Iter) -> Result<Token, String> {
     match c {
         ' ' | '\t' => eat_space(iter),
         '\r' | '\n' => eat_line_break(iter),
-        _ => panic!(),
+        _ => Err("Unusable whitespace: {c}".to_string()),
     }
 }
 
