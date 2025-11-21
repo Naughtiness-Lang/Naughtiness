@@ -3,7 +3,7 @@ use std::{
     iter::{Enumerate, Peekable},
     str::Chars,
 };
-use token::{Symbol, Token, TokenKind};
+use token::{LineBreak, Space, Symbol, Token, TokenKind};
 
 pub mod token;
 
@@ -118,16 +118,51 @@ fn eat_symbol(iter: &mut Iter) -> Result<Token, String> {
 }
 
 fn eat_whitespace(iter: &mut Iter) -> Result<Token, String> {
+    let Some(&(_, c)) = iter.peek() else {
+        unreachable!();
+    };
+
+    match c {
+        ' ' | '\t' => eat_space(iter),
+        '\r' | '\n' => eat_line_break(iter),
+        _ => Err(format!("Unusable whitespace: {c}")),
+    }
+}
+
+fn eat_space(iter: &mut Iter) -> Result<Token, String> {
     let Some(&(position, _)) = iter.peek() else {
         unreachable!();
     };
 
-    let code = from_fn(|| iter.next_if(|c| c.1.is_whitespace()))
-        .map(|c| c.1)
+    let code = from_fn(|| iter.next_if(|c| matches!(c.1, ' ' | '\t')))
+        .map(|c| match c.1 {
+            ' ' => Space::Space,
+            '\t' => Space::Tab,
+            _ => unreachable!(),
+        })
         .collect();
 
     Ok(Token {
         token_kind: TokenKind::WhiteSpace(code),
+        token_pos: position,
+    })
+}
+
+fn eat_line_break(iter: &mut Iter) -> Result<Token, String> {
+    let Some(&(position, _)) = iter.peek() else {
+        unreachable!();
+    };
+
+    let code = from_fn(|| iter.next_if(|c| matches!(c.1, '\n' | '\r')))
+        .map(|c| match c.1 {
+            '\r' => LineBreak::CR,
+            '\n' => LineBreak::LF,
+            _ => unreachable!(),
+        })
+        .collect();
+
+    Ok(Token {
+        token_kind: TokenKind::LineBreak(code),
         token_pos: position,
     })
 }
