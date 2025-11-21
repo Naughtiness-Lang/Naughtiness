@@ -170,7 +170,7 @@ fn slice_code<'a>(
         unreachable!();
     };
 
-    let _ = from_fn(|| iter.next_if(|&(_, c)| condition(c))).count();
+    let _ = from_fn(|| iter.next_if(|&(_, c)| condition(c))).count(); // count()によりイテレータを消費
     let end = iter.peek().map(|e| e.0).unwrap_or(source_code.len());
 
     if start == end {
