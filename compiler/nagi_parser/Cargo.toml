@@ -5,3 +5,4 @@ edition = "2024"
 
 [dependencies]
 nagi_ast = { version = "0.1.0", path = "../nagi_ast" }
+nagi_lexer = { version = "0.1.0", path = "../nagi_lexer" }
