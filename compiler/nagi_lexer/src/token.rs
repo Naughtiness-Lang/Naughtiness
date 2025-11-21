@@ -9,7 +9,21 @@ pub enum TokenKind {
     Identifier(String),
     Number(String),
     Symbol(Symbol),
-    WhiteSpace(String),
+    Space(String),
+    LineBreak(Vec<LineBreak>),
+    WhiteSpace(Vec<Space>),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum LineBreak {
+    CR,
+    LF,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum Space {
+    Space,
+    Tab,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
