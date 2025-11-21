@@ -124,7 +124,7 @@ fn eat_whitespace(iter: &mut Iter) -> Result<Token, String> {
 
     match c {
         ' ' | '\t' => eat_space(iter),
-        '\r' | '\n' => eat_line_breal(iter),
+        '\r' | '\n' => eat_line_break(iter),
         _ => panic!(),
     }
 }
@@ -148,7 +148,7 @@ fn eat_space(iter: &mut Iter) -> Result<Token, String> {
     })
 }
 
-fn eat_line_breal(iter: &mut Iter) -> Result<Token, String> {
+fn eat_line_break(iter: &mut Iter) -> Result<Token, String> {
     let Some(&(position, _)) = iter.peek() else {
         unreachable!();
     };
