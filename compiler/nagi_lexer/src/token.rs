@@ -1,13 +1,13 @@
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct Token {
-    pub token_kind: TokenKind,
+pub struct Token<'a> {
+    pub token_kind: TokenKind<'a>,
     pub token_pos: usize,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub enum TokenKind {
-    Identifier(String),
-    Number(String),
+pub enum TokenKind<'a> {
+    Identifier(&'a str),
+    Number(&'a str),
     Symbol(Symbol),
     LineBreak(Vec<LineBreak>),
     WhiteSpace(Vec<Space>),
