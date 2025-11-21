@@ -174,7 +174,7 @@ fn slice_code<'a>(
     let end = iter.peek().map(|e| e.0).unwrap_or(source_code.len());
 
     if start == end {
-        return Err("".to_string());
+        unreachable!("slice_code was called without a matching character");
     }
 
     Ok(&source_code[start..end])
