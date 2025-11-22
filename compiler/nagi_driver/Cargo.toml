@@ -1,0 +1,9 @@
+[package]
+name = "nagi_driver"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+nagi_command_option = { version = "0.1.0", path = "../nagi_command_option" }
+nagi_lexer = { version = "0.1.0", path = "../nagi_lexer" }
+nagi_parser = { version = "0.1.0", path = "../nagi_parser" }
