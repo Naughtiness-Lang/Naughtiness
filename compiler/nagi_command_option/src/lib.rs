@@ -67,40 +67,27 @@ fn parse_command_option(args: &[String]) -> Result<NagiCommandOption, CommandOpt
         })
         .collect();
 
-        if let Some(option) = arg.strip_prefix("--") {
-            let Some(option) = options.get(option) else {
-                return Err(CommandOptionError {
-                    kind: OptionErrorKind::UnknownOption,
-                    message: HelpOption::help(&options_list),
-                });
-            };
-
-            parse_option_args(
-                &mut nagi_command_option,
-                &**option,
-                &option_args,
-                &options_list,
-            )?;
+        let option = if let Some(option) = arg.strip_prefix("--") {
+            options.get(option).map(|o| &**o)
         } else if let Some(option) = arg.strip_prefix("-") {
-            let Some(option) = short_options.get(option) else {
-                return Err(CommandOptionError {
-                    kind: OptionErrorKind::UnknownOption,
-                    message: HelpOption::help(&options_list),
-                });
-            };
-
-            parse_option_args(
-                &mut nagi_command_option,
-                &***option,
-                &option_args,
-                &options_list,
-            )?;
+            short_options.get(option).map(|o| &***o)
         } else {
+            unreachable!()
+        };
+
+        let Some(option) = option else {
             return Err(CommandOptionError {
                 kind: OptionErrorKind::UnknownOption,
                 message: HelpOption::help(&options_list),
             });
-        }
+        };
+
+        parse_option_args(
+            &mut nagi_command_option,
+            option,
+            &option_args,
+            &options_list,
+        )?;
     }
 
     Ok(nagi_command_option)
