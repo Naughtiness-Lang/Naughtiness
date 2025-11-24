@@ -28,9 +28,9 @@ impl HelpOption {
         short_offset: usize,
         option_offset: usize,
     ) -> String {
-        let option = Self::formated_option(command_option);
-        let short_option = Self::formated_short_option(command_option);
-        let option_args: String = Self::formated_option_args(command_option);
+        let option = Self::formatted_option(command_option);
+        let short_option = Self::formatted_short_option(command_option);
+        let option_args: String = Self::formatted_option_args(command_option);
         let help_text = command_option.help();
         let short_option_length = short_option.len();
         let option_length = option.len() + option_args.len();
@@ -39,7 +39,7 @@ impl HelpOption {
         format!("{short_option}{option_offset}{option}{option_args}{help_text_offset}{help_text}")
     }
 
-    fn formated_option(command_option: &dyn CommandOption) -> String {
+    fn formatted_option(command_option: &dyn CommandOption) -> String {
         format!(
             "{}{}{}",
             Self::option_prefix(),
@@ -48,7 +48,7 @@ impl HelpOption {
         )
     }
 
-    fn formated_short_option(command_option: &dyn CommandOption) -> String {
+    fn formatted_short_option(command_option: &dyn CommandOption) -> String {
         command_option
             .shorten_option()
             .map(|s| {
@@ -62,7 +62,7 @@ impl HelpOption {
             .unwrap_or_default()
     }
 
-    fn formated_option_args(command_option: &dyn CommandOption) -> String {
+    fn formatted_option_args(command_option: &dyn CommandOption) -> String {
         command_option
             .help_option_args()
             .iter()
