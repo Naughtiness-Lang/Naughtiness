@@ -39,13 +39,9 @@ fn get_source_files(
     recursive: bool,
 ) -> Result<Vec<PathBuf>, CompileError> {
     let walker = WalkDir::new(path).max_depth(if recursive { usize::MAX } else { 1 });
-
-    let mut entries = vec![];
-    for entry in walker.into_iter() {
-        entries.push(entry?);
-    }
-
-    let files = entries
+    let files = walker
+        .into_iter()
+        .collect::<Result<Vec<_>, _>>()?
         .into_iter()
         .filter(|e| e.file_type().is_file())
         .filter(|e| e.path().extension().and_then(|s| s.to_str()) == Some(target_extension))
