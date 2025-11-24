@@ -24,7 +24,8 @@ impl NagiCommandOption {
     pub fn from(args: &[String]) -> Result<Self, String> {
         parse_command_option(args)
     }
-
+}
+impl Default for NagiCommandOption {
     fn default() -> Self {
         Self {
             target_dir: PathBuf::from("./src"),
