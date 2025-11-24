@@ -37,7 +37,17 @@ fn get_source_files(
     recursed: bool,
 ) -> Result<Vec<PathBuf>, CompileError> {
     let mut files = vec![];
-    let mut stack = vec![path];
+    let mut stack = vec![];
+
+    // ディレクトリの場合はそのディレクトリ配下をstackに積む
+    if let Ok(dirs) = path.read_dir() {
+        for dir_entry in dirs {
+            stack.push(dir_entry?.path());
+        }
+    } else {
+        stack.push(path);
+    }
+
     while let Some(target) = stack.pop() {
         // 拡張子チェック
         if let Some(extension) = target.extension() {
@@ -45,11 +55,9 @@ fn get_source_files(
                 continue;
             };
 
-            // パスの正規化
-            let normalize_path = target.canonicalize()?;
-
             // 対応している拡張子であれば追加
             if target_extension == extension {
+                let normalize_path = target.canonicalize()?; // パスの正規化
                 files.push(normalize_path);
             }
         } else if let Ok(dirs) = target.read_dir() {
