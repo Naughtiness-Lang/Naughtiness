@@ -106,16 +106,17 @@ fn parse_option_args(
         });
     }
 
-    let Err(e) = option.parse_option_args(args, nagi_command_option) else {
-        return Ok(());
-    };
+    match option.parse_option_args(args, nagi_command_option) {
+        Ok(()) => Ok(()),
+        Err(e) => {
+            let message = match e {
+                OptionErrorKind::HelpRequested => HelpOption::help(options),
+                _ => HelpOption::help_usage(option),
+            };
 
-    let message = match e {
-        OptionErrorKind::HelpRequested => HelpOption::help(options),
-        _ => HelpOption::help_usage(option),
-    };
-
-    Err(CommandOptionError { kind: e, message })
+            Err(CommandOptionError { kind: e, message })
+        }
+    }
 }
 
 fn make_option(option: impl CommandOption + 'static) -> (String, Box<dyn CommandOption>) {
