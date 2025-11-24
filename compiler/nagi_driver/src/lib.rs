@@ -2,6 +2,7 @@ use std::{fs, path::PathBuf, time::Instant};
 
 use errors::CompileError;
 use nagi_command_option::*;
+use walkdir::WalkDir;
 
 mod errors;
 
@@ -37,40 +38,19 @@ fn get_source_files(
     target_extension: &str,
     recursive: bool,
 ) -> Result<Vec<PathBuf>, CompileError> {
-    let mut files = vec![];
-    let mut stack = vec![];
+    let walker = WalkDir::new(path).max_depth(if recursive { usize::MAX } else { 1 });
 
-    // ディレクトリの場合はそのディレクトリ配下をstackに積む
-    if let Ok(dirs) = path.read_dir() {
-        for dir_entry in dirs {
-            stack.push(dir_entry?.path());
-        }
-    } else {
-        stack.push(path);
+    let mut entries = vec![];
+    for entry in walker.into_iter() {
+        entries.push(entry?);
     }
 
-    while let Some(target) = stack.pop() {
-        // 拡張子チェック
-        if let Some(extension) = target.extension() {
-            let Some(extension) = extension.to_str() else {
-                continue;
-            };
-
-            // 対応している拡張子であれば追加
-            if target_extension == extension {
-                files.push(target);
-            }
-        } else if let Ok(dirs) = target.read_dir() {
-            if !recursive {
-                continue;
-            }
-
-            // ディレクトリの場合は再帰的に探す
-            for dir_entry in dirs {
-                stack.push(dir_entry?.path());
-            }
-        }
-    }
+    let files = entries
+        .into_iter()
+        .filter(|e| e.file_type().is_file())
+        .filter(|e| e.path().extension().and_then(|s| s.to_str()) == Some(target_extension))
+        .map(|e| e.into_path())
+        .collect();
 
     Ok(files)
 }
