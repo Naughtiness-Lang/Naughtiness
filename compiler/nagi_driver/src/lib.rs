@@ -18,7 +18,7 @@ pub fn driver() {
 
 fn run_compiler() -> Result<(), CompileError> {
     let args = NagiCommandOption::new()?;
-    let files = get_source_files(args.target_dir.clone(), SOURCE_FILE_EXTENSION, true)?;
+    let files = get_source_files(args.target_dir, SOURCE_FILE_EXTENSION, true)?;
 
     println!("{files:#?}");
     for file in files {
