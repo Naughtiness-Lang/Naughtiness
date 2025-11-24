@@ -17,9 +17,15 @@ impl CommandOption for EmitOption {
 
     fn parse_option_args(
         &self,
-        args: &[String],
+        args: &[&str],
         nagi_command_option: &mut NagiCommandOption,
-    ) -> bool {
-        false
+    ) -> Result<(), CommandOptionError> {
+        nagi_command_option.output_file_type = match args[0] {
+            "bin" => OutputFileType::Binary,
+            "obj" => OutputFileType::Object,
+            _ => return Err(CommandOptionError::InvalidOptionArgs),
+        };
+
+        Ok(())
     }
 }

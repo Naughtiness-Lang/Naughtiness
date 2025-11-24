@@ -17,13 +17,17 @@ impl CommandOption for LogLevelOption {
 
     fn parse_option_args(
         &self,
-        args: &[String],
+        args: &[&str],
         nagi_command_option: &mut NagiCommandOption,
-    ) -> bool {
-        if args.len() != 1 {
-            return false;
-        }
+    ) -> Result<(), CommandOptionError> {
+        nagi_command_option.log_level = match args[0] {
+            "all" => LogLevel::All,
+            "normal" => LogLevel::Normal,
+            "detailed" => LogLevel::Detailed,
+            "minimal" => LogLevel::Minimal,
+            _ => return Err(CommandOptionError::InvalidOptionArgs),
+        };
 
-        true
+        Ok(())
     }
 }

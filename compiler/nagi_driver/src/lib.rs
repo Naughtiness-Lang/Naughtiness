@@ -1,35 +1,37 @@
-use std::{io::Error, path::PathBuf, time::Instant};
+use std::{fs, path::PathBuf, time::Instant};
 
+use errors::CompileError;
 use nagi_command_option::*;
-use nagi_lexer::*;
-use nagi_parser::*;
 
-const SUPPORT_EXTENSIONS: [&str; 1] = ["nagi"];
+mod errors;
+
+const SUPPORT_EXTENSIONS: [&str; 2] = ["nagi", "spec"];
 
 pub fn driver() {
     let start_time = Instant::now();
-    let option = match NagiCommandOption::new() {
-        Ok(option) => option,
-        Err(e) => {
-            println!("{e}");
-            return;
-        }
-    };
 
-    compile(&option);
-
-    println!("{:?}", start_time.elapsed());
+    match run_compiler() {
+        Ok(_) => println!("{:?}", start_time.elapsed()),
+        Err(e) => println!("error: {e}"),
+    }
 }
 
-fn compile(command_option: &NagiCommandOption) {
-    let files = get_files(command_option.target_dir.clone(), true).unwrap();
+fn run_compiler() -> Result<(), CompileError> {
+    let args = NagiCommandOption::new()?;
+    let files = get_files(args.target_dir.clone(), true)?;
 
     println!("{files:#?}");
+    for file in files {
+        let source_code = fs::read_to_string(file)?;
+        let token_list = nagi_lexer::tokenize(&source_code)?;
+        //let ast = nagi_parser::parse(&token_list)?;
+    }
+
+    Ok(())
 }
 
-fn get_files(path: PathBuf, recursed: bool) -> Result<Vec<PathBuf>, Error> {
+fn get_files(path: PathBuf, recursed: bool) -> Result<Vec<PathBuf>, CompileError> {
     let mut files = vec![];
-
     let mut stack = vec![path];
     while let Some(target) = stack.pop() {
         // 拡張子チェック

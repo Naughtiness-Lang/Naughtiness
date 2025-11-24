@@ -17,9 +17,13 @@ impl CommandOption for TargetOption {
 
     fn parse_option_args(
         &self,
-        args: &[String],
+        args: &[&str],
         nagi_command_option: &mut NagiCommandOption,
-    ) -> bool {
-        true
+    ) -> Result<(), CommandOptionError> {
+        let path = PathBuf::from(&args[0]);
+
+        nagi_command_option.target_dir = path;
+
+        Ok(())
     }
 }
