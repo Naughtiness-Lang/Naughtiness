@@ -34,7 +34,7 @@ fn run_compiler() -> Result<(), CompileError> {
 fn get_source_files(
     path: PathBuf,
     target_extension: &str,
-    recursed: bool,
+    recursive: bool,
 ) -> Result<Vec<PathBuf>, CompileError> {
     let mut files = vec![];
     let mut stack = vec![];
@@ -61,7 +61,7 @@ fn get_source_files(
                 files.push(normalize_path);
             }
         } else if let Ok(dirs) = target.read_dir() {
-            if !recursed {
+            if !recursive {
                 continue;
             }
 
