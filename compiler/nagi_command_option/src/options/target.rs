@@ -19,7 +19,7 @@ impl CommandOption for TargetOption {
         &self,
         args: &[&str],
         nagi_command_option: &mut NagiCommandOption,
-    ) -> Result<(), CommandOptionError> {
+    ) -> Result<(), OptionErrorKind> {
         let Some(&arg) = args.first() else {
             unreachable!();
         };

@@ -1,4 +1,4 @@
-use errors::CommandOptionError;
+use errors::{CommandOptionError, OptionErrorKind};
 use options::{
     emit::EmitOption, help::HelpOption, log_level::LogLevelOption, target::TargetOption,
 };
@@ -16,12 +16,12 @@ pub struct NagiCommandOption {
 }
 
 impl NagiCommandOption {
-    pub fn new() -> Result<Self, String> {
+    pub fn new() -> Result<Self, CommandOptionError> {
         let args: Vec<String> = env::args().skip(1).collect();
         Self::from(&args)
     }
 
-    pub fn from(args: &[String]) -> Result<Self, String> {
+    pub fn from(args: &[String]) -> Result<Self, CommandOptionError> {
         parse_command_option(args)
     }
 }
@@ -37,7 +37,7 @@ impl Default for NagiCommandOption {
     }
 }
 
-fn parse_command_option(args: &[String]) -> Result<NagiCommandOption, String> {
+fn parse_command_option(args: &[String]) -> Result<NagiCommandOption, CommandOptionError> {
     let options = HashMap::from([
         make_option(HelpOption {}),
         make_option(LogLevelOption {}),
@@ -55,7 +55,10 @@ fn parse_command_option(args: &[String]) -> Result<NagiCommandOption, String> {
     let mut nagi_command_option = NagiCommandOption::default();
     while let Some(arg) = args.next() {
         let Some(arg) = arg.strip_prefix("-") else {
-            return Err(HelpOption::help(&options_list));
+            return Err(CommandOptionError {
+                kind: OptionErrorKind::UnknownOption,
+                message: HelpOption::help(&options_list),
+            });
         };
 
         let option_args: Vec<&str> = from_fn(|| {
@@ -73,7 +76,10 @@ fn parse_command_option(args: &[String]) -> Result<NagiCommandOption, String> {
             )?;
         } else if let Some(option) = arg.strip_prefix("-") {
             let Some(option) = options.get(option) else {
-                return Err(HelpOption::help(&options_list));
+                return Err(CommandOptionError {
+                    kind: OptionErrorKind::UnknownOption,
+                    message: HelpOption::help(&options_list),
+                });
             };
 
             parse_option_args(
@@ -83,7 +89,10 @@ fn parse_command_option(args: &[String]) -> Result<NagiCommandOption, String> {
                 &options_list,
             )?;
         } else {
-            return Err(HelpOption::help(&options_list));
+            return Err(CommandOptionError {
+                kind: OptionErrorKind::UnknownOption,
+                message: HelpOption::help(&options_list),
+            });
         }
     }
 
@@ -95,19 +104,24 @@ fn parse_option_args(
     option: &dyn CommandOption,
     args: &[&str],
     options: &[&dyn CommandOption],
-) -> Result<(), String> {
+) -> Result<(), CommandOptionError> {
     if option.help_option_args().len() != args.len() {
-        return Err(HelpOption::help_usage(option));
+        return Err(CommandOptionError {
+            kind: OptionErrorKind::InvalidOptionArgs,
+            message: HelpOption::help_usage(option),
+        });
     }
 
     let Err(e) = option.parse_option_args(args, nagi_command_option) else {
         return Ok(());
     };
 
-    match e {
-        CommandOptionError::Help => Err(HelpOption::help(options)),
-        _ => Err(HelpOption::help_usage(option)),
-    }
+    let message = match e {
+        OptionErrorKind::HelpRequested => HelpOption::help(options),
+        _ => HelpOption::help_usage(option),
+    };
+
+    Err(CommandOptionError { kind: e, message })
 }
 
 fn make_option(option: impl CommandOption + 'static) -> (String, Box<dyn CommandOption>) {
@@ -148,5 +162,5 @@ pub(crate) trait CommandOption {
         &self,
         args: &[&str],
         nagi_command_option: &mut NagiCommandOption,
-    ) -> Result<(), CommandOptionError>;
+    ) -> Result<(), OptionErrorKind>;
 }

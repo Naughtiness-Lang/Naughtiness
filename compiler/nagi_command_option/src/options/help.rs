@@ -1,4 +1,4 @@
-use crate::*;
+use crate::{errors::OptionErrorKind, *};
 
 pub(crate) struct HelpOption;
 
@@ -147,7 +147,7 @@ impl CommandOption for HelpOption {
         &self,
         _: &[&str],
         _: &mut NagiCommandOption,
-    ) -> Result<(), CommandOptionError> {
-        Err(CommandOptionError::Help)
+    ) -> Result<(), OptionErrorKind> {
+        Err(OptionErrorKind::HelpRequested)
     }
 }

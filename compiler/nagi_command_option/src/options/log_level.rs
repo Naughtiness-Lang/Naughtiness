@@ -19,7 +19,7 @@ impl CommandOption for LogLevelOption {
         &self,
         args: &[&str],
         nagi_command_option: &mut NagiCommandOption,
-    ) -> Result<(), CommandOptionError> {
+    ) -> Result<(), OptionErrorKind> {
         let Some(&arg) = args.first() else {
             unreachable!();
         };
@@ -29,7 +29,7 @@ impl CommandOption for LogLevelOption {
             "normal" => LogLevel::Normal,
             "detailed" => LogLevel::Detailed,
             "minimal" => LogLevel::Minimal,
-            _ => return Err(CommandOptionError::InvalidOptionArgs),
+            _ => return Err(OptionErrorKind::InvalidOptionArgs),
         };
 
         Ok(())

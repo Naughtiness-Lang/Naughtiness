@@ -19,7 +19,7 @@ impl CommandOption for EmitOption {
         &self,
         args: &[&str],
         nagi_command_option: &mut NagiCommandOption,
-    ) -> Result<(), CommandOptionError> {
+    ) -> Result<(), OptionErrorKind> {
         let Some(&arg) = args.first() else {
             unreachable!();
         };
@@ -28,7 +28,7 @@ impl CommandOption for EmitOption {
             "bin" => OutputFileType::Binary,
             "obj" => OutputFileType::Object,
             "ast" => OutputFileType::AST,
-            _ => return Err(CommandOptionError::InvalidOptionArgs),
+            _ => return Err(OptionErrorKind::InvalidOptionArgs),
         };
 
         Ok(())
