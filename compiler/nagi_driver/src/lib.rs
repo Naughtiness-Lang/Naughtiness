@@ -21,7 +21,6 @@ fn run_compiler() -> Result<(), CompileError> {
     let args = NagiCommandOption::new()?;
     let files = get_source_files(args.target_dir, SOURCE_FILE_EXTENSION, true)?;
 
-    println!("{files:#?}");
     for file in files {
         let source_code = fs::read_to_string(file)?;
 
