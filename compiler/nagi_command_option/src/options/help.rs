@@ -4,19 +4,13 @@ pub(crate) struct HelpOption;
 
 impl HelpOption {
     pub fn help(options: &[&dyn CommandOption]) -> String {
-        let mut help_text = vec![];
         let short_option_length = Self::short_option_length(options);
         let option_length = Self::option_length(options);
-
-        for value in options.iter() {
-            help_text.push(Self::make_help_message(
-                *value,
-                short_option_length,
-                option_length,
-            ))
-        }
-
-        help_text.join("\n")
+        options
+            .iter()
+            .map(|option| Self::make_help_message(*option, short_option_length, option_length))
+            .collect::<Vec<_>>()
+            .join("\n")
     }
 
     pub fn help_usage(option: &dyn CommandOption) -> String {
