@@ -56,11 +56,11 @@ fn parse_command_option(args: &[String]) -> Result<NagiCommandOption, String> {
             return Err(HelpOption::help(&options_list));
         };
 
-        let option_args: Vec<&str> = from_fn(|| args.next_if(|arg| !arg.starts_with("-")))
-            .collect::<Vec<&String>>()
-            .iter()
-            .map(|f| f.as_str())
-            .collect();
+        let option_args: Vec<&str> = from_fn(|| {
+            args.next_if(|arg| !arg.starts_with("-"))
+                .map(|f| f.as_str())
+        })
+        .collect();
 
         if let Some(&option) = short_options.get(arg) {
             parse_option_args(
