@@ -23,6 +23,7 @@ impl CommandOption for EmitOption {
         nagi_command_option.output_file_type = match args[0] {
             "bin" => OutputFileType::Binary,
             "obj" => OutputFileType::Object,
+            "ast" => OutputFileType::AST,
             _ => return Err(CommandOptionError::InvalidOptionArgs),
         };
 
