@@ -54,12 +54,12 @@ fn parse_command_option(args: &[String]) -> Result<NagiCommandOption, CommandOpt
     let mut args = args.iter().peekable();
     let mut nagi_command_option = NagiCommandOption::default();
     while let Some(arg) = args.next() {
-        let Some(arg) = arg.strip_prefix("-") else {
+        if !arg.starts_with("-") {
             return Err(CommandOptionError {
                 kind: OptionErrorKind::UnknownOption,
                 message: HelpOption::help(&options_list),
             });
-        };
+        }
 
         let option_args: Vec<&str> = from_fn(|| {
             args.next_if(|arg| !arg.starts_with("-"))
@@ -67,14 +67,7 @@ fn parse_command_option(args: &[String]) -> Result<NagiCommandOption, CommandOpt
         })
         .collect();
 
-        if let Some(&option) = short_options.get(arg) {
-            parse_option_args(
-                &mut nagi_command_option,
-                &**option,
-                &option_args,
-                &options_list,
-            )?;
-        } else if let Some(option) = arg.strip_prefix("-") {
+        if let Some(option) = arg.strip_prefix("--") {
             let Some(option) = options.get(option) else {
                 return Err(CommandOptionError {
                     kind: OptionErrorKind::UnknownOption,
@@ -85,6 +78,20 @@ fn parse_command_option(args: &[String]) -> Result<NagiCommandOption, CommandOpt
             parse_option_args(
                 &mut nagi_command_option,
                 &**option,
+                &option_args,
+                &options_list,
+            )?;
+        } else if let Some(option) = arg.strip_prefix("-") {
+            let Some(option) = short_options.get(option) else {
+                return Err(CommandOptionError {
+                    kind: OptionErrorKind::UnknownOption,
+                    message: HelpOption::help(&options_list),
+                });
+            };
+
+            parse_option_args(
+                &mut nagi_command_option,
+                &***option,
                 &option_args,
                 &options_list,
             )?;
