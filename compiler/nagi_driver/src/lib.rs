@@ -58,8 +58,7 @@ fn get_source_files(
 
             // 対応している拡張子であれば追加
             if target_extension == extension {
-                let normalize_path = target.canonicalize()?; // パスの正規化
-                files.push(normalize_path);
+                files.push(target);
             }
         } else if let Ok(dirs) = target.read_dir() {
             if !recursive {
