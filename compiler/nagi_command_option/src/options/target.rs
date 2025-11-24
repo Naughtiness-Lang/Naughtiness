@@ -1,0 +1,34 @@
+use crate::{CommandOption, NagiCommandOption, OptionErrorKind};
+use std::path::PathBuf;
+
+pub(crate) struct TargetOption;
+
+impl CommandOption for TargetOption {
+    fn help(&self) -> &str {
+        "コンパイルする対象を指定します"
+    }
+
+    fn option(&self) -> &str {
+        "target"
+    }
+
+    fn help_option_args(&self) -> Vec<&str> {
+        vec!["TARGET"]
+    }
+
+    fn parse_option_args(
+        &self,
+        args: &[&str],
+        nagi_command_option: &mut NagiCommandOption,
+    ) -> Result<(), OptionErrorKind> {
+        let Some(&arg) = args.first() else {
+            unreachable!();
+        };
+
+        let path = PathBuf::from(arg);
+
+        nagi_command_option.target_dir = path;
+
+        Ok(())
+    }
+}
