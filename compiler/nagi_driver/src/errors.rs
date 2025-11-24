@@ -6,7 +6,6 @@ use nagi_command_option::errors::CommandOptionError;
 pub(crate) enum CompileError {
     IOError(io::Error),
     CommandOptionError(CommandOptionError),
-    Other(String), // 専用のエラーができるまで
 }
 
 impl CompileError {}
@@ -18,7 +17,6 @@ impl Display for CompileError {
         match self {
             CompileError::IOError(e) => write!(f, "{e}"),
             CompileError::CommandOptionError(e) => write!(f, "{}", e.message),
-            CompileError::Other(e) => write!(f, "{e}"),
         }
     }
 }
@@ -32,12 +30,5 @@ impl From<io::Error> for CompileError {
 impl From<CommandOptionError> for CompileError {
     fn from(value: CommandOptionError) -> Self {
         CompileError::CommandOptionError(value)
-    }
-}
-
-// TODO remove
-impl From<String> for CompileError {
-    fn from(value: String) -> Self {
-        CompileError::Other(value)
     }
 }
