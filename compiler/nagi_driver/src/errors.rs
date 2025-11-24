@@ -8,8 +8,6 @@ pub(crate) enum CompileError {
     CommandOptionError(CommandOptionError),
 }
 
-impl CompileError {}
-
 impl Error for CompileError {}
 
 impl Display for CompileError {
