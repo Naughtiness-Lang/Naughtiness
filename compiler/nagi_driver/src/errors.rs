@@ -3,7 +3,7 @@ use std::{error::Error, fmt::Display, io};
 #[derive(Debug)]
 pub(crate) enum CompileError {
     IOError(io::Error),
-    Other(String),
+    Other(String), // 専用のエラーができるまで
 }
 
 impl CompileError {}
@@ -25,6 +25,7 @@ impl From<io::Error> for CompileError {
     }
 }
 
+// TODO remove
 impl From<String> for CompileError {
     fn from(value: String) -> Self {
         CompileError::Other(value)
