@@ -12,7 +12,7 @@ pub fn driver() {
 
     match run_compiler() {
         Ok(_) => println!("{:?}", start_time.elapsed()),
-        Err(e) => println!("error: {e}"),
+        Err(e) => eprintln!("{e}"),
     }
 }
 
