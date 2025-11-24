@@ -1,4 +1,4 @@
-use crate::{errors::OptionErrorKind, *};
+use crate::{CommandOption, NagiCommandOption, OptionErrorKind};
 
 pub(crate) struct HelpOption;
 

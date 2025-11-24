@@ -1,4 +1,4 @@
-use crate::*;
+use crate::{CommandOption, NagiCommandOption, OptionErrorKind, OutputFileType};
 
 pub(crate) struct EmitOption;
 

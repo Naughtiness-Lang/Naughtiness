@@ -4,7 +4,7 @@ use options::{
 };
 use std::{collections::HashMap, env, fmt::Debug, iter::from_fn, path::PathBuf};
 
-mod errors;
+pub mod errors;
 mod options;
 
 #[derive(Debug)]
