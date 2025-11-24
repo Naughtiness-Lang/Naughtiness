@@ -5,7 +5,7 @@ use nagi_command_option::*;
 
 mod errors;
 
-const SUPPORT_EXTENSIONS: [&str; 2] = ["nagi", "spec"];
+const SOURCE_FILE_EXTENSION: &str = "nagi";
 
 pub fn driver() {
     let start_time = Instant::now();
@@ -18,11 +18,12 @@ pub fn driver() {
 
 fn run_compiler() -> Result<(), CompileError> {
     let args = NagiCommandOption::new()?;
-    let files = get_files(args.target_dir.clone(), true)?;
+    let files = get_source_files(args.target_dir.clone(), SOURCE_FILE_EXTENSION, true)?;
 
     println!("{files:#?}");
     for file in files {
         let source_code = fs::read_to_string(file)?;
+
         let token_list = nagi_lexer::tokenize(&source_code)?;
         //let ast = nagi_parser::parse(&token_list)?;
     }
@@ -30,7 +31,11 @@ fn run_compiler() -> Result<(), CompileError> {
     Ok(())
 }
 
-fn get_files(path: PathBuf, recursed: bool) -> Result<Vec<PathBuf>, CompileError> {
+fn get_source_files(
+    path: PathBuf,
+    target_extension: &str,
+    recursed: bool,
+) -> Result<Vec<PathBuf>, CompileError> {
     let mut files = vec![];
     let mut stack = vec![path];
     while let Some(target) = stack.pop() {
@@ -44,7 +49,7 @@ fn get_files(path: PathBuf, recursed: bool) -> Result<Vec<PathBuf>, CompileError
             let normalize_path = target.canonicalize()?;
 
             // 対応している拡張子であれば追加
-            if SUPPORT_EXTENSIONS.contains(&extension) {
+            if target_extension == extension {
                 files.push(normalize_path);
             }
         } else if let Ok(dirs) = target.read_dir() {
