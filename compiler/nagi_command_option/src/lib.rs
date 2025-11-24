@@ -25,6 +25,7 @@ impl NagiCommandOption {
         parse_command_option(args)
     }
 }
+
 impl Default for NagiCommandOption {
     fn default() -> Self {
         Self {

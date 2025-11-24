@@ -20,7 +20,11 @@ impl CommandOption for TargetOption {
         args: &[&str],
         nagi_command_option: &mut NagiCommandOption,
     ) -> Result<(), CommandOptionError> {
-        let path = PathBuf::from(&args[0]);
+        let Some(&arg) = args.first() else {
+            unreachable!();
+        };
+
+        let path = PathBuf::from(arg);
 
         nagi_command_option.target_dir = path;
 

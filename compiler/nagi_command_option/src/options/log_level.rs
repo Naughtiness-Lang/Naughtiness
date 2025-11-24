@@ -20,7 +20,11 @@ impl CommandOption for LogLevelOption {
         args: &[&str],
         nagi_command_option: &mut NagiCommandOption,
     ) -> Result<(), CommandOptionError> {
-        nagi_command_option.log_level = match args[0] {
+        let Some(&arg) = args.first() else {
+            unreachable!();
+        };
+
+        nagi_command_option.log_level = match arg {
             "all" => LogLevel::All,
             "normal" => LogLevel::Normal,
             "detailed" => LogLevel::Detailed,
