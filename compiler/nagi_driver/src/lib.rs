@@ -36,7 +36,7 @@ fn get_files(path: PathBuf, recursed: bool) -> Result<Vec<PathBuf>, CompileError
     while let Some(target) = stack.pop() {
         // 拡張子チェック
         if let Some(extension) = target.extension() {
-            let Some(extention) = extension.to_str() else {
+            let Some(extension) = extension.to_str() else {
                 continue;
             };
 
@@ -44,7 +44,7 @@ fn get_files(path: PathBuf, recursed: bool) -> Result<Vec<PathBuf>, CompileError
             let normalize_path = target.canonicalize()?;
 
             // 対応している拡張子であれば追加
-            if SUPPORT_EXTENSIONS.contains(&extention) {
+            if SUPPORT_EXTENSIONS.contains(&extension) {
                 files.push(normalize_path);
             }
         } else if let Ok(dirs) = target.read_dir() {
