@@ -1,6 +1,5 @@
 use errors::TokenizeError;
-use std::iter::from_fn;
-use std::iter::Peekable;
+use std::iter::{from_fn, Peekable};
 use std::str::CharIndices;
 use token::{LineBreak, Space, Symbol, Token, TokenKind};
 
