@@ -1,3 +1,5 @@
+// TODO コード側がでかくなったので別ブランチで作成
+/*
 use crate::lexer::Lexer;
 use nagi_lexer::token::*;
 
@@ -7,3 +9,4 @@ use nagi_lexer::token::*;
 pub enum NagiSpecificationToken {}
 
 pub fn tokenize_specification() {}
+ * */
