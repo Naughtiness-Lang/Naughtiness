@@ -56,7 +56,9 @@ where
     let mut hash_map: PatternHashMap<T, U> = HashMap::new();
     for (pattern, value) in list {
         let Some(key) = pattern.first().cloned() else {
-            unreachable!();
+            // 空のパターンはデバッグ時だけ警告し基本的に無視する
+            debug_assert!(false, "Empty pattern is not allowed");
+            continue;
         };
         hash_map.entry(key).or_default().push((pattern, value));
     }
