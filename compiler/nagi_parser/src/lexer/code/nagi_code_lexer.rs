@@ -385,7 +385,10 @@ fn eat_literal_with_symbol_prefix<'a>(
     signed: bool,
 ) -> Result<NagiProgramTokenKind, TokenStreamParseError> {
     match symbol {
-        Symbol::Dot => eat_float_literal(iter, 0),
+        Symbol::Dot => {
+            iter.next(); // .の消費
+            eat_float_literal(iter, 0)
+        }
         Symbol::Underscore => {
             let value = eat_dec_literal(iter)?;
             let suffix = eat_suffix(iter);
@@ -490,9 +493,10 @@ fn eat_float_literal<'a>(
     iter: &mut ParseIter<'a>,
     front_dec: u64,
 ) -> Result<NagiProgramTokenKind, TokenStreamParseError> {
-    if iter
-        .next_if(|t| matches!(t.token_kind, TokenKind::Number(_)))
-        .is_none()
+    if expect_token(iter, |token| {
+        matches!(token.token_kind, TokenKind::Number(_))
+    })
+    .is_err()
     {
         return Ok(NagiProgramTokenKind::Literal(NagiLiteral::Float {
             value: front_dec as f64,
