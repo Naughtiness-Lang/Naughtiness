@@ -1,8 +1,9 @@
-use std::iter::from_fn;
-use std::iter::Peekable;
+use errors::TokenizeError;
+use std::iter::{from_fn, Peekable};
 use std::str::CharIndices;
 use token::{LineBreak, Space, Symbol, Token, TokenKind};
 
+pub mod errors;
 pub mod token;
 
 type Iter<'a> = Peekable<CharIndices<'a>>;
@@ -13,11 +14,11 @@ type Iter<'a> = Peekable<CharIndices<'a>>;
 // 作りたい言語の仕様上パーサーを2つ書くのでここで固定のルールにすると,
 // パーサー側で扱いにくくなるため一旦特定の文字の塊だけにして
 // パーサーに渡す前にそのパーサーに適したトークンに変換する
-pub fn tokenize<'a>(source_code: &'a str) -> Result<Vec<Token<'a>>, String> {
+pub fn tokenize<'a>(source_code: &'a str) -> Result<Vec<Token<'a>>, TokenizeError> {
     let mut iter = source_code.char_indices().peekable();
     let mut token_list = vec![];
 
-    while let Some(&(_, c)) = iter.peek() {
+    while let Some(&(position, c)) = iter.peek() {
         let token = if c.is_ascii_digit() {
             eat_number(source_code, &mut iter)? // 0-9で始まるものは数値として扱う
         } else if c.is_ascii_whitespace() {
@@ -27,7 +28,7 @@ pub fn tokenize<'a>(source_code: &'a str) -> Result<Vec<Token<'a>>, String> {
         } else if c.is_alphabetic() {
             eat_identifier(source_code, &mut iter)? // 日本語などを使用するのでasciiに限定しない
         } else {
-            return Err(format!("Invalid characters were used: {c}"));
+            return Err(TokenizeError::InvalidCharacters { c, position });
         };
 
         token_list.push(token);
@@ -36,7 +37,7 @@ pub fn tokenize<'a>(source_code: &'a str) -> Result<Vec<Token<'a>>, String> {
     Ok(token_list)
 }
 
-fn eat_identifier<'a>(source_code: &'a str, iter: &mut Iter) -> Result<Token<'a>, String> {
+fn eat_identifier<'a>(source_code: &'a str, iter: &mut Iter) -> Result<Token<'a>, TokenizeError> {
     let Some(&(position, _)) = iter.peek() else {
         unreachable!();
     };
@@ -49,7 +50,7 @@ fn eat_identifier<'a>(source_code: &'a str, iter: &mut Iter) -> Result<Token<'a>
     })
 }
 
-fn eat_number<'a>(source_code: &'a str, iter: &mut Iter) -> Result<Token<'a>, String> {
+fn eat_number<'a>(source_code: &'a str, iter: &mut Iter) -> Result<Token<'a>, TokenizeError> {
     let Some(&(position, _)) = iter.peek() else {
         unreachable!();
     };
@@ -62,7 +63,7 @@ fn eat_number<'a>(source_code: &'a str, iter: &mut Iter) -> Result<Token<'a>, St
     })
 }
 
-fn eat_symbol<'a>(iter: &mut Iter) -> Result<Token<'a>, String> {
+fn eat_symbol<'a>(iter: &mut Iter) -> Result<Token<'a>, TokenizeError> {
     let Some(&(position, c)) = iter.peek() else {
         unreachable!();
     };
@@ -111,19 +112,19 @@ fn eat_symbol<'a>(iter: &mut Iter) -> Result<Token<'a>, String> {
     })
 }
 
-fn eat_whitespace<'a>(iter: &mut Iter) -> Result<Token<'a>, String> {
-    let Some(&(_, c)) = iter.peek() else {
+fn eat_whitespace<'a>(iter: &mut Iter) -> Result<Token<'a>, TokenizeError> {
+    let Some(&(position, c)) = iter.peek() else {
         unreachable!();
     };
 
     match c {
         ' ' | '\t' => eat_space(iter),
         '\r' | '\n' => eat_line_break(iter),
-        _ => Err(format!("Unusable whitespace: {c}")),
+        _ => Err(TokenizeError::UnusableWhitespace { c, position }),
     }
 }
 
-fn eat_space<'a>(iter: &mut Iter) -> Result<Token<'a>, String> {
+fn eat_space<'a>(iter: &mut Iter) -> Result<Token<'a>, TokenizeError> {
     let Some(&(position, _)) = iter.peek() else {
         unreachable!();
     };
@@ -142,7 +143,7 @@ fn eat_space<'a>(iter: &mut Iter) -> Result<Token<'a>, String> {
     })
 }
 
-fn eat_line_break<'a>(iter: &mut Iter) -> Result<Token<'a>, String> {
+fn eat_line_break<'a>(iter: &mut Iter) -> Result<Token<'a>, TokenizeError> {
     let Some(&(position, _)) = iter.peek() else {
         unreachable!();
     };
@@ -165,7 +166,7 @@ fn slice_code<'a>(
     source_code: &'a str,
     iter: &mut Iter,
     condition: impl Fn(char) -> bool,
-) -> Result<&'a str, String> {
+) -> Result<&'a str, TokenizeError> {
     let Some(&(start, _)) = iter.peek() else {
         unreachable!();
     };
