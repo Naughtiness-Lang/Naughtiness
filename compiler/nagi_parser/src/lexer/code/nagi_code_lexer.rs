@@ -41,7 +41,11 @@ pub enum NagiLiteral {
         value: f64,
         suffix: Option<String>,
     },
-    String,
+    //
+    String {
+        first: usize,
+        end: usize,
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -206,6 +210,10 @@ fn glue_symbol_or_operator<'a>(
         return Ok(token_kind);
     }
 
+    if let Ok(token_kind) = glue_string_literal(iter) {
+        return Ok(token_kind);
+    }
+
     Err(TokenStreamParseError::UnmatchedToken {
         position: token.token_pos,
     })
@@ -279,6 +287,28 @@ fn glue_symbol<'a>(
     Err(TokenStreamParseError::UnmatchedToken {
         position: token.token_pos,
     })
+}
+
+fn glue_string_literal<'a>(
+    iter: &mut ParseIter<'a>,
+) -> Result<NagiProgramTokenKind, TokenStreamParseError> {
+    let first = expect_token(iter, |t| {
+        matches!(t.token_kind, TokenKind::Symbol(Symbol::DoubleQuotation))
+    })?;
+
+    while iter
+        .next_if(|t| !matches!(t.token_kind, TokenKind::Symbol(Symbol::DoubleQuotation)))
+        .is_some()
+    {}
+
+    let end = expect_token(iter, |t| {
+        matches!(t.token_kind, TokenKind::Symbol(Symbol::DoubleQuotation))
+    })?;
+
+    Ok(NagiProgramTokenKind::Literal(NagiLiteral::String {
+        first: first.token_pos + 1,
+        end: end.token_pos - 1,
+    }))
 }
 
 fn glue_comment<'a>(iter: &mut ParseIter<'a>) {
