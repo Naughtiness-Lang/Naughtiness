@@ -68,41 +68,7 @@ fn eat_symbol<'a>(iter: &mut Iter) -> Result<Token<'a>, TokenizeError> {
         unreachable!();
     };
 
-    let symbol = match c {
-        '+' => Symbol::Plus,
-        '-' => Symbol::Minus,
-        '*' => Symbol::Star,
-        '/' => Symbol::Slash,
-        '%' => Symbol::Percent,
-        '=' => Symbol::Equal,
-        '^' => Symbol::Caret,
-        '!' => Symbol::Not,
-        '&' => Symbol::And,
-        '|' => Symbol::Or,
-        '>' => Symbol::GreaterThan,
-        '<' => Symbol::LessThan,
-        '@' => Symbol::At,
-        '.' => Symbol::Dot,
-        ',' => Symbol::Comma,
-        ':' => Symbol::Colon,
-        ';' => Symbol::Semicolon,
-        '#' => Symbol::Pound,
-        '$' => Symbol::Dollar,
-        '?' => Symbol::Question,
-        '~' => Symbol::Tilde,
-        '(' => Symbol::LeftParenthesis,
-        ')' => Symbol::RightParenthesis,
-        '[' => Symbol::LeftBrackets,
-        ']' => Symbol::RightBrackets,
-        '{' => Symbol::LeftBrace,
-        '}' => Symbol::RightBrace,
-        '\'' => Symbol::SingleQuotation,
-        '"' => Symbol::DoubleQuotation,
-        '\\' => Symbol::BackSlash,
-        '_' => Symbol::Underscore,
-        '`' => Symbol::Backtick,
-        _ => unreachable!(),
-    };
+    let symbol = Symbol::from(c)?;
 
     iter.next();
 
