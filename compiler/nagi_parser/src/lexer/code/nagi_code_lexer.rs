@@ -363,7 +363,7 @@ fn eat_literal_with_prefix<'a>(
     }
 }
 
-/// BIN_LITERAL ::= 0b ( BIN_DIGIT | `_` )*BIN_DIGIT ( BIN_DIGIT | `_` )*
+/// BIN_LITERAL ::= 0b ( BIN_DIGIT | "_" )*BIN_DIGIT ( BIN_DIGIT | "_" )*
 /// BIN_DIGIT   ::= [0-1]
 fn eat_bin_literal<'a>(iter: &mut ParseIter<'a>) -> Result<u64, TokenStreamParseError> {
     except_token(iter, |t| {
@@ -376,7 +376,7 @@ fn eat_bin_literal<'a>(iter: &mut ParseIter<'a>) -> Result<u64, TokenStreamParse
     convert_to_number(iter, 2, |c| matches!(c, '0' | '1'))
 }
 
-/// OCT_LITERAL ::= 0o ( OCT_DIGIT | `_` )*OCT_DIGIT (OCT_DIGIT | `_` )*
+/// OCT_LITERAL ::= 0o ( OCT_DIGIT | "_" )*OCT_DIGIT (OCT_DIGIT | "_" )*
 /// OCT_DIGIT   ::= [0-7]
 fn eat_oct_literal<'a>(iter: &mut ParseIter<'a>) -> Result<u64, TokenStreamParseError> {
     except_token(iter, |t| {
@@ -389,7 +389,7 @@ fn eat_oct_literal<'a>(iter: &mut ParseIter<'a>) -> Result<u64, TokenStreamParse
     convert_to_number(iter, 8, |c| matches!(c, '0'..='7'))
 }
 
-/// DEC_LITERAL ::= DEC_DIGIT ( DEC_DIGIT | `_` )*
+/// DEC_LITERAL ::= DEC_DIGIT ( DEC_DIGIT | "_" )*
 /// DEC_DIGIT   ::= [0-9]
 fn eat_dec_literal<'a>(iter: &mut ParseIter<'a>) -> Result<u64, TokenStreamParseError> {
     except_token(iter, |t| {
@@ -417,10 +417,10 @@ fn eat_hex_literal<'a>(iter: &mut ParseIter<'a>) -> Result<u64, TokenStreamParse
     convert_to_number(iter, 16, |c| c.is_ascii_hexdigit())
 }
 
-/// FLOAT_LITERAL ::= DEC_LITERAL `.`
-///                 | DEC_LITERAL `.` DEC_LITERAL
+/// FLOAT_LITERAL ::= DEC_LITERAL "."
+///                 | DEC_LITERAL "." DEC_LITERAL
 ///
-/// 先頭の DEC_LITERAL . は解析済み前提
+/// 先頭の DEC_LITERAL "." は解析済み前提
 fn eat_float_literal<'a>(
     iter: &mut ParseIter<'a>,
     front_dec: u64,
