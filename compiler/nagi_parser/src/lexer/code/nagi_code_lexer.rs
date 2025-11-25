@@ -146,7 +146,7 @@ pub fn tokenize_program(
 fn glue_identifier<'a>(
     iter: &mut ParseIter<'a>,
 ) -> Result<NagiProgramTokenKind, TokenStreamParseError> {
-    except_token(iter, |t| matches!(t.token_kind, TokenKind::Identifier(_)))?;
+    expect_token(iter, |t| matches!(t.token_kind, TokenKind::Identifier(_)))?;
 
     let ident = glue_text_with_underscore(iter)?;
 
@@ -164,7 +164,7 @@ fn glue_identifier<'a>(
 fn glue_literal<'a>(
     iter: &mut ParseIter<'a>,
 ) -> Result<NagiProgramTokenKind, TokenStreamParseError> {
-    let token = except_token(iter, |t| matches!(t.token_kind, TokenKind::Number(_)))?;
+    let token = expect_token(iter, |t| matches!(t.token_kind, TokenKind::Number(_)))?;
     let TokenKind::Number(num) = token.token_kind else {
         unreachable!()
     };
@@ -195,7 +195,7 @@ fn glue_literal<'a>(
 fn glue_symbol_or_operator<'a>(
     iter: &mut ParseIter<'a>,
 ) -> Result<NagiProgramTokenKind, TokenStreamParseError> {
-    let token = except_token(iter, |t| matches!(t.token_kind, TokenKind::Symbol(_)))?;
+    let token = expect_token(iter, |t| matches!(t.token_kind, TokenKind::Symbol(_)))?;
 
     if let Ok(token_kind) = glue_symbol(iter) {
         return Ok(token_kind);
@@ -213,7 +213,7 @@ fn glue_symbol_or_operator<'a>(
 fn glue_operator<'a>(
     iter: &mut ParseIter<'a>,
 ) -> Result<NagiProgramTokenKind, TokenStreamParseError> {
-    let token = except_token(iter, |t| matches!(t.token_kind, TokenKind::Symbol(_)))?;
+    let token = expect_token(iter, |t| matches!(t.token_kind, TokenKind::Symbol(_)))?;
     let TokenKind::Symbol(symbol) = &token.token_kind else {
         unreachable!()
     };
@@ -248,7 +248,7 @@ fn glue_operator<'a>(
 fn glue_symbol<'a>(
     iter: &mut ParseIter<'a>,
 ) -> Result<NagiProgramTokenKind, TokenStreamParseError> {
-    let token = except_token(iter, |t| matches!(t.token_kind, TokenKind::Symbol(_)))?;
+    let token = expect_token(iter, |t| matches!(t.token_kind, TokenKind::Symbol(_)))?;
     let TokenKind::Symbol(symbol) = &token.token_kind else {
         unreachable!()
     };
@@ -350,7 +350,7 @@ fn eat_literal_with_prefix<'a>(
     iter: &mut ParseIter<'a>,
     signed: bool,
 ) -> Result<NagiProgramTokenKind, TokenStreamParseError> {
-    except_token(iter, |t| t.token_kind == TokenKind::Number("0"))?;
+    expect_token(iter, |t| t.token_kind == TokenKind::Number("0"))?;
     iter.next(); // 0は確定しているので次のトークンへ
 
     // 次が終端かつ0のみの場合
@@ -416,7 +416,7 @@ fn eat_literal_with_prefix<'a>(
 /// BIN_LITERAL ::= 0b ( BIN_DIGIT | "_" )*BIN_DIGIT ( BIN_DIGIT | "_" )*
 /// BIN_DIGIT   ::= [0-1]
 fn eat_bin_literal<'a>(iter: &mut ParseIter<'a>) -> Result<u64, TokenStreamParseError> {
-    except_token(iter, |t| {
+    expect_token(iter, |t| {
         matches!(
             t.token_kind,
             TokenKind::Number(_) | TokenKind::Symbol(Symbol::Underscore)
@@ -429,7 +429,7 @@ fn eat_bin_literal<'a>(iter: &mut ParseIter<'a>) -> Result<u64, TokenStreamParse
 /// OCT_LITERAL ::= 0o ( OCT_DIGIT | "_" )*OCT_DIGIT (OCT_DIGIT | "_" )*
 /// OCT_DIGIT   ::= [0-7]
 fn eat_oct_literal<'a>(iter: &mut ParseIter<'a>) -> Result<u64, TokenStreamParseError> {
-    except_token(iter, |t| {
+    expect_token(iter, |t| {
         matches!(
             t.token_kind,
             TokenKind::Number(_) | TokenKind::Symbol(Symbol::Underscore)
@@ -442,7 +442,7 @@ fn eat_oct_literal<'a>(iter: &mut ParseIter<'a>) -> Result<u64, TokenStreamParse
 /// DEC_LITERAL ::= DEC_DIGIT ( DEC_DIGIT | "_" )*
 /// DEC_DIGIT   ::= [0-9]
 fn eat_dec_literal<'a>(iter: &mut ParseIter<'a>) -> Result<u64, TokenStreamParseError> {
-    except_token(iter, |t| {
+    expect_token(iter, |t| {
         matches!(
             t.token_kind,
             TokenKind::Number(_) | TokenKind::Symbol(Symbol::Underscore)
@@ -457,7 +457,7 @@ fn eat_dec_literal<'a>(iter: &mut ParseIter<'a>) -> Result<u64, TokenStreamParse
 ///
 /// 0x は解析済み前提
 fn eat_hex_literal<'a>(iter: &mut ParseIter<'a>) -> Result<u64, TokenStreamParseError> {
-    except_token(iter, |t| {
+    expect_token(iter, |t| {
         matches!(
             t.token_kind,
             TokenKind::Identifier(_) | TokenKind::Number(_) | TokenKind::Symbol(Symbol::Underscore)
@@ -543,7 +543,7 @@ fn convert_to_number<'a>(
     u64::from_str_radix(&src, radix).map_err(|_| TokenStreamParseError::CannotConvertTextToNumbers)
 }
 
-fn except_token<'a, F>(
+fn expect_token<'a, F>(
     iter: &mut ParseIter<'a>,
     condition: F,
 ) -> Result<&'a Token<'a>, TokenStreamParseError>
