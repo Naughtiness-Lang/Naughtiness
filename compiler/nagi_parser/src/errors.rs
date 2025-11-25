@@ -20,7 +20,7 @@ pub(crate) enum ParserErrorKind {
 }
 
 #[derive(Debug)]
-pub enum TokenStreamParseError {
+pub(crate) enum TokenStreamParseError {
     UnexpectedToken { position: usize },
     UnmatchedToken { position: usize },
     UnexpectedEOF,
