@@ -21,7 +21,7 @@ pub enum TokenStreamParseError {
     UnmatchedToken { position: usize },
     UnexpectedEOF,
     UnusableCharacters { position: usize },
-    CannotConvertTextToNumbers,
+    CannotConvertTextToNumbers { position: usize },
     NotKeyword,
 }
 
@@ -38,8 +38,8 @@ impl Display for TokenStreamParseError {
             TokenStreamParseError::UnusableCharacters { position } => {
                 write!(f, "Unusable characters at position {position}")
             }
-            TokenStreamParseError::CannotConvertTextToNumbers => {
-                write!(f, "Cannot convert text to numbers")
+            TokenStreamParseError::CannotConvertTextToNumbers { position } => {
+                write!(f, "Cannot convert text to numbers. position: {position}")
             }
             TokenStreamParseError::NotKeyword => write!(f, "Not a keyword"),
         }

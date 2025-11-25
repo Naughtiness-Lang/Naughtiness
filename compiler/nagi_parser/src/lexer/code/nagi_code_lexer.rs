@@ -487,11 +487,9 @@ fn eat_float_literal<'a>(
     iter: &mut ParseIter<'a>,
     front_dec: u64,
 ) -> Result<NagiProgramTokenKind, TokenStreamParseError> {
-    if expect_token(iter, |token| {
+    let Ok(token) = expect_token(iter, |token| {
         matches!(token.token_kind, TokenKind::Number(_))
-    })
-    .is_err()
-    {
+    }) else {
         return Ok(NagiProgramTokenKind::Literal(NagiLiteral::Float {
             value: front_dec as f64,
             suffix: None,
@@ -500,7 +498,9 @@ fn eat_float_literal<'a>(
 
     let value = format!("{front_dec}.{}", eat_dec_literal(iter)?)
         .parse()
-        .map_err(|_| TokenStreamParseError::CannotConvertTextToNumbers)?;
+        .map_err(|_| TokenStreamParseError::CannotConvertTextToNumbers {
+            position: token.token_pos,
+        })?;
 
     Ok(NagiProgramTokenKind::Literal(NagiLiteral::Float {
         value,
@@ -549,7 +549,11 @@ fn convert_to_number<'a>(
     }
 
     let src: String = num_text.chars().filter(condition).collect();
-    u64::from_str_radix(&src, radix).map_err(|_| TokenStreamParseError::CannotConvertTextToNumbers)
+    u64::from_str_radix(&src, radix).map_err(|_| {
+        TokenStreamParseError::CannotConvertTextToNumbers {
+            position: token_pos,
+        }
+    })
 }
 
 fn expect_token<'a, F>(
