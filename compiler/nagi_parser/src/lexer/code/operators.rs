@@ -29,7 +29,6 @@ pub(crate) static OPERATOR_PATTERN_MAP: LazyLock<PatternHashMap<Symbol, NagiOper
             (vec![Symbol::And, Symbol::And], NagiOperator::And),
             (vec![Symbol::Or, Symbol::Or], NagiOperator::Or),
             (vec![Symbol::Not], NagiOperator::Not),
-            (vec![Symbol::Caret], NagiOperator::Xor),
             // ビット演算
             (vec![Symbol::And], NagiOperator::BitwiseAnd),
             (vec![Symbol::Or], NagiOperator::BitwiseOr),
