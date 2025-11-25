@@ -6,6 +6,7 @@ use nagi_lexer::token::{Symbol, Token, TokenKind};
 use std::{
     iter::{from_fn, Peekable},
     slice::Iter,
+    str::FromStr,
 };
 
 // コード ナギ自体のコード
@@ -150,7 +151,7 @@ fn glue_identifier<'a>(
 
     let ident = glue_text_with_underscore(iter)?;
 
-    if let Some(keyword) = NagiCodeKeyword::from(&ident) {
+    if let Ok(keyword) = NagiCodeKeyword::from_str(&ident) {
         return Ok(NagiProgramTokenKind::Identifier(NagiIdentifier::Keyword(
             keyword,
         )));

@@ -1,5 +1,3 @@
-use nagi_lexer::token::TokenKind;
-
 #[derive(Debug)]
 pub struct ParserError {
     pub message: String,
@@ -15,4 +13,5 @@ pub enum TokenStreamParseError {
     UnexpectedEOF,
     UnusableCharacters { position: usize },
     CannotConvertTextToNumbers,
+    NotKeyword,
 }

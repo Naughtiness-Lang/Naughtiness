@@ -1,3 +1,7 @@
+use std::str::FromStr;
+
+use crate::errors::TokenStreamParseError;
+
 #[derive(Debug)]
 pub(crate) enum NagiCodeKeyword {
     Fn,
@@ -25,9 +29,11 @@ pub(crate) enum NagiCodeKeyword {
     Extern,
 }
 
-impl NagiCodeKeyword {
-    pub fn from(token: &str) -> Option<NagiCodeKeyword> {
-        let keyword = match token {
+impl FromStr for NagiCodeKeyword {
+    type Err = TokenStreamParseError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let keyword = match s {
             "let" => NagiCodeKeyword::Let,
             "ref" => NagiCodeKeyword::Ref,
             "mut" => NagiCodeKeyword::Mut,
@@ -51,9 +57,9 @@ impl NagiCodeKeyword {
             "static" => NagiCodeKeyword::Static,
             "extern" => NagiCodeKeyword::Extern,
             "impl" => NagiCodeKeyword::Impl,
-            _ => return None,
+            _ => return Err(TokenStreamParseError::NotKeyword),
         };
 
-        Some(keyword)
+        Ok(keyword)
     }
 }
