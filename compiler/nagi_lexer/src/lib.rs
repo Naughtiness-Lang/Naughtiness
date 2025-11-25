@@ -68,7 +68,7 @@ fn eat_symbol<'a>(iter: &mut Iter) -> Result<Token<'a>, TokenizeError> {
         unreachable!();
     };
 
-    let symbol = Symbol::from(c)?;
+    let symbol = Symbol::try_from(c)?;
 
     iter.next();
 

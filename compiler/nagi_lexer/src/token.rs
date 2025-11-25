@@ -1,6 +1,5 @@
-use std::str::FromStr;
-
 use crate::errors::TokenizeError;
+use std::str::FromStr;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Token<'a> {
@@ -66,9 +65,11 @@ pub enum Symbol {
     Backtick,        // `
 }
 
-impl Symbol {
-    pub fn from(c: char) -> Result<Self, TokenizeError> {
-        let symbol = match c {
+impl TryFrom<char> for Symbol {
+    type Error = TokenizeError;
+
+    fn try_from(value: char) -> Result<Self, Self::Error> {
+        let symbol = match value {
             '+' => Symbol::Plus,
             '-' => Symbol::Minus,
             '*' => Symbol::Star,
@@ -116,6 +117,6 @@ impl FromStr for Symbol {
             return Err(TokenizeError::NotSymbol);
         };
 
-        Self::from(c)
+        Self::try_from(c)
     }
 }
