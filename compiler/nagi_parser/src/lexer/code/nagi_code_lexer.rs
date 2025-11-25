@@ -1,7 +1,10 @@
 use super::{
     keywords::NagiCodeKeyword, operators::OPERATOR_PATTERN_MAP, symbols::SYMBOL_PATTERN_MAP,
 };
-use crate::{errors::TokenStreamParseError, lexer::Lexer};
+use crate::{
+    errors::TokenStreamParseError,
+    lexer::{Lexer, PatternHashMap},
+};
 use nagi_lexer::token::{Symbol, Token, TokenKind};
 use std::{
     iter::{from_fn, Peekable},
@@ -211,70 +214,16 @@ fn glue_symbol_or_operator<'a>(
 fn glue_operator<'a>(
     iter: &mut ParseIter<'a>,
 ) -> Result<NagiProgramTokenKind, TokenStreamParseError> {
-    let token = expect_token(iter, |t| matches!(t.token_kind, TokenKind::Symbol(_)))?;
-    let TokenKind::Symbol(symbol) = &token.token_kind else {
-        unreachable!()
-    };
-
-    let Some(patterns) = OPERATOR_PATTERN_MAP.get(symbol) else {
-        return Err(TokenStreamParseError::UnmatchedToken {
-            position: token.token_pos,
-        });
-    };
-
-    for (pattern, operator) in patterns {
-        let result = match_token(iter, pattern, |token, symbol| {
-            let TokenKind::Symbol(target_symbol) = &token.token_kind else {
-                return false;
-            };
-
-            target_symbol == symbol
-        });
-
-        if !result {
-            continue;
-        }
-
-        return Ok(NagiProgramTokenKind::Operator(operator.clone()));
-    }
-
-    Err(TokenStreamParseError::UnmatchedToken {
-        position: token.token_pos,
+    glue_from_pattern(iter, &OPERATOR_PATTERN_MAP, |t| {
+        NagiProgramTokenKind::Operator(t)
     })
 }
 
 fn glue_symbol<'a>(
     iter: &mut ParseIter<'a>,
 ) -> Result<NagiProgramTokenKind, TokenStreamParseError> {
-    let token = expect_token(iter, |t| matches!(t.token_kind, TokenKind::Symbol(_)))?;
-    let TokenKind::Symbol(symbol) = &token.token_kind else {
-        unreachable!()
-    };
-
-    let Some(patterns) = SYMBOL_PATTERN_MAP.get(symbol) else {
-        return Err(TokenStreamParseError::UnmatchedToken {
-            position: token.token_pos,
-        });
-    };
-
-    for (pattern, symbol) in patterns {
-        let result = match_token(iter, pattern, |token, symbol| {
-            let TokenKind::Symbol(target_symbol) = &token.token_kind else {
-                return false;
-            };
-
-            target_symbol == symbol
-        });
-
-        if !result {
-            continue;
-        }
-
-        return Ok(NagiProgramTokenKind::Symbol(symbol.clone()));
-    }
-
-    Err(TokenStreamParseError::UnmatchedToken {
-        position: token.token_pos,
+    glue_from_pattern(iter, &SYMBOL_PATTERN_MAP, |t| {
+        NagiProgramTokenKind::Symbol(t)
     })
 }
 
@@ -318,6 +267,42 @@ fn glue_comment<'a>(iter: &mut ParseIter<'a>) {
     // コメントは何もしない
     // 今は1行コメントのみの対応
     eat_line_comment(iter);
+}
+
+fn glue_from_pattern<'a, T>(
+    iter: &mut ParseIter<'a>,
+    pattern_map: &PatternHashMap<Symbol, T>,
+    token_constructor: impl Fn(T) -> NagiProgramTokenKind,
+) -> Result<NagiProgramTokenKind, TokenStreamParseError>
+where
+    T: Clone,
+{
+    let token = expect_token(iter, |t| matches!(t.token_kind, TokenKind::Symbol(_)))?;
+    let TokenKind::Symbol(symbol) = &token.token_kind else {
+        unreachable!()
+    };
+
+    let Some(patterns) = pattern_map.get(symbol) else {
+        return Err(TokenStreamParseError::UnmatchedToken {
+            position: token.token_pos,
+        });
+    };
+
+    for (pattern, value) in patterns {
+        let result = match_token(
+            iter,
+            pattern,
+            |token, symbol| matches!(&token.token_kind, TokenKind::Symbol(s) if s == symbol),
+        );
+
+        if result {
+            return Ok(token_constructor(value.clone()));
+        }
+    }
+
+    Err(TokenStreamParseError::UnmatchedToken {
+        position: token.token_pos,
+    })
 }
 
 fn match_token<'a, T, F>(iter: &mut ParseIter<'a>, list: &[T], condition: F) -> bool
