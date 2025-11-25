@@ -5,7 +5,7 @@ use crate::{
     errors::TokenStreamParseError,
     lexer::{Lexer, PatternHashMap},
 };
-use nagi_lexer::token::{Symbol, Token, TokenKind};
+use nagi_lexer::token::{self, Symbol, Token, TokenKind};
 use std::{
     iter::{from_fn, Peekable},
     slice::Iter,
@@ -192,7 +192,10 @@ fn glue_literal<'a>(
 fn glue_symbol_or_operator<'a>(
     iter: &mut ParseIter<'a>,
 ) -> Result<NagiProgramTokenKind, TokenStreamParseError> {
-    let token = expect_token(iter, |t| matches!(t.token_kind, TokenKind::Symbol(_)))?;
+    let Some(token) = iter.peek() else {
+        return Err(TokenStreamParseError::UnexpectedEOF);
+    };
+    let position = token.token_pos;
 
     if let Ok(token_kind) = glue_symbol(iter) {
         return Ok(token_kind);
@@ -206,9 +209,7 @@ fn glue_symbol_or_operator<'a>(
         return Ok(token_kind);
     }
 
-    Err(TokenStreamParseError::UnmatchedToken {
-        position: token.token_pos,
-    })
+    Err(TokenStreamParseError::UnmatchedToken { position })
 }
 
 fn glue_operator<'a>(
