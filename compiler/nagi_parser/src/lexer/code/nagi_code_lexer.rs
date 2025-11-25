@@ -355,7 +355,7 @@ fn eat_literal_with_prefix<'a>(
     iter.next(); // 0は確定しているので次のトークンへ
 
     // 次が終端かつ0のみの場合
-    let Some(token) = iter.next() else {
+    let Some(token) = iter.peek() else {
         return Ok(NagiProgramTokenKind::Literal(NagiLiteral::Integer {
             signed,
             value: 0,
