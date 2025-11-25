@@ -206,7 +206,7 @@ fn glue_symbol_or_operator<'a>(
         return Ok(token_kind);
     }
 
-    Err(TokenStreamParseError::UnmatchToken {
+    Err(TokenStreamParseError::UnmatchedToken {
         position: token.token_pos,
     })
 }
@@ -220,7 +220,7 @@ fn glue_operator<'a>(
     };
 
     let Some(patterns) = OPERATOR_PATTERN_MAP.get(symbol) else {
-        return Err(TokenStreamParseError::UnmatchToken {
+        return Err(TokenStreamParseError::UnmatchedToken {
             position: token.token_pos,
         });
     };
@@ -241,7 +241,7 @@ fn glue_operator<'a>(
         return Ok(NagiProgramTokenKind::Operator(operator.clone()));
     }
 
-    Err(TokenStreamParseError::UnmatchToken {
+    Err(TokenStreamParseError::UnmatchedToken {
         position: token.token_pos,
     })
 }
@@ -255,7 +255,7 @@ fn glue_symbol<'a>(
     };
 
     let Some(patterns) = SYMBOL_PATTERN_MAP.get(symbol) else {
-        return Err(TokenStreamParseError::UnmatchToken {
+        return Err(TokenStreamParseError::UnmatchedToken {
             position: token.token_pos,
         });
     };
@@ -276,7 +276,7 @@ fn glue_symbol<'a>(
         return Ok(NagiProgramTokenKind::Symbol(symbol.clone()));
     }
 
-    Err(TokenStreamParseError::UnmatchToken {
+    Err(TokenStreamParseError::UnmatchedToken {
         position: token.token_pos,
     })
 }
@@ -525,7 +525,7 @@ fn convert_to_number<'a>(
 
     let num_text = glue_text_with_underscore(iter)?;
     if num_text.is_empty() {
-        return Err(TokenStreamParseError::UnmatchToken {
+        return Err(TokenStreamParseError::UnmatchedToken {
             position: token_pos,
         });
     }

@@ -9,7 +9,7 @@ pub(crate) enum ParserErrorKind {}
 #[derive(Debug)]
 pub enum TokenStreamParseError {
     UnexpectedToken { position: usize },
-    UnmatchToken { position: usize },
+    UnmatchedToken { position: usize },
     UnexpectedEOF,
     UnusableCharacters { position: usize },
     CannotConvertTextToNumbers,
