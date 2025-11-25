@@ -74,7 +74,6 @@ pub enum NagiOperator {
     And,
     Or,
     Not,
-    Xor,
 
     BitwiseAnd,
     BitwiseOr,
