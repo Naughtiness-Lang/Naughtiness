@@ -1,22 +1,18 @@
 use std::{error::Error, fmt::Display};
 
 #[derive(Debug)]
-pub struct ParserError {
-    pub message: String,
-    kind: ParserErrorKind,
+pub enum ParserError {
+    TokenStreamParse(TokenStreamParseError),
 }
 
 impl Error for ParserError {}
 
 impl Display for ParserError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.message)
+        match self {
+            ParserError::TokenStreamParse(e) => e.fmt(f),
+        }
     }
-}
-
-#[derive(Debug)]
-pub(crate) enum ParserErrorKind {
-    TokenStreamParse(TokenStreamParseError),
 }
 
 #[derive(Debug)]
@@ -27,4 +23,10 @@ pub(crate) enum TokenStreamParseError {
     UnusableCharacters { position: usize },
     CannotConvertTextToNumbers,
     NotKeyword,
+}
+
+impl Display for TokenStreamParseError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{self:?}") // エラー内容は別ブランチで対応する
+    }
 }
