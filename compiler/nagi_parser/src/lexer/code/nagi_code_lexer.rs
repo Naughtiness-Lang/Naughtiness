@@ -7,7 +7,7 @@ use std::{
 use super::{
     keywords::NagiCodeKeyword, operators::OPERATOR_PATTERN_MAP, symbols::SYMBOL_PATTERN_MAP,
 };
-use crate::{errors::TokenizeError, lexer::Lexer};
+use crate::{errors::TokenStreamParseError, lexer::Lexer};
 
 // コード ナギ自体のコード
 #[derive(Debug)]
@@ -94,9 +94,11 @@ pub enum NagiSymbol {
     RightBrace,       // }
 }
 
-pub fn tokenize_program<'a>(
+type ParseIter<'a> = Peekable<Iter<'a, Token<'a>>>;
+
+pub fn tokenize_program(
     token_list: &[Token],
-) -> Result<Lexer<NagiProgramToken>, TokenizeError<'a>> {
+) -> Result<Lexer<NagiProgramToken>, TokenStreamParseError> {
     let mut iter = token_list.iter().peekable();
     let mut token_list = vec![];
     while let Some(token) = iter.peek() {
@@ -131,15 +133,9 @@ pub fn tokenize_program<'a>(
 
 /// キーワードもしくは識別子に変換する
 fn glue_identifier<'a>(
-    iter: &mut Peekable<Iter<'_, Token>>,
-) -> Result<NagiProgramTokenKind, TokenizeError<'a>> {
-    let Some(Token {
-        token_kind: TokenKind::Identifier(_),
-        ..
-    }) = iter.peek()
-    else {
-        unreachable!()
-    };
+    iter: &mut ParseIter<'a>,
+) -> Result<NagiProgramTokenKind, TokenStreamParseError> {
+    except_token(iter, |t| matches!(t.token_kind, TokenKind::Identifier(_)))?;
 
     let ident = glue_text_with_underscore(iter)?;
 
@@ -155,18 +151,15 @@ fn glue_identifier<'a>(
 }
 
 fn glue_literal<'a>(
-    iter: &mut Peekable<Iter<'_, Token>>,
-) -> Result<NagiProgramTokenKind, TokenizeError<'a>> {
-    let Some(Token {
-        token_kind: TokenKind::Number(num),
-        ..
-    }) = iter.peek()
-    else {
+    iter: &mut ParseIter<'a>,
+) -> Result<NagiProgramTokenKind, TokenStreamParseError> {
+    let token = except_token(iter, |t| matches!(t.token_kind, TokenKind::Number(_)))?;
+    let TokenKind::Number(num) = token.token_kind else {
         unreachable!()
     };
 
     // 0始まり
-    if matches!(*num, "0") {
+    if matches!(num, "0") {
         return eat_literal_with_prefix(iter, true);
     }
 
@@ -189,19 +182,16 @@ fn glue_literal<'a>(
 }
 
 fn glue_operator<'a>(
-    iter: &mut Peekable<Iter<'_, Token>>,
-) -> Result<NagiProgramTokenKind, TokenizeError<'a>> {
-    let Some(Token {
-        token_kind: TokenKind::Symbol(symbol),
-        token_pos,
-    }) = iter.peek()
-    else {
+    iter: &mut ParseIter<'a>,
+) -> Result<NagiProgramTokenKind, TokenStreamParseError> {
+    let token = except_token(iter, |t| matches!(t.token_kind, TokenKind::Symbol(_)))?;
+    let TokenKind::Symbol(symbol) = &token.token_kind else {
         unreachable!()
     };
 
     let Some(patterns) = OPERATOR_PATTERN_MAP.get(symbol) else {
-        return Err(TokenizeError::UnmatchToken {
-            position: *token_pos,
+        return Err(TokenStreamParseError::UnmatchToken {
+            position: token.token_pos,
         });
     };
 
@@ -225,19 +215,16 @@ fn glue_operator<'a>(
 }
 
 fn glue_symbol<'a>(
-    iter: &mut Peekable<Iter<'_, Token>>,
-) -> Result<NagiProgramTokenKind, TokenizeError<'a>> {
-    let Some(Token {
-        token_kind: TokenKind::Symbol(symbol),
-        token_pos,
-    }) = iter.peek()
-    else {
+    iter: &mut ParseIter<'a>,
+) -> Result<NagiProgramTokenKind, TokenStreamParseError> {
+    let token = except_token(iter, |t| matches!(t.token_kind, TokenKind::Symbol(_)))?;
+    let TokenKind::Symbol(symbol) = &token.token_kind else {
         unreachable!()
     };
 
     let Some(patterns) = SYMBOL_PATTERN_MAP.get(symbol) else {
-        return Err(TokenizeError::UnmatchToken {
-            position: *token_pos,
+        return Err(TokenStreamParseError::UnmatchToken {
+            position: token.token_pos,
         });
     };
 
@@ -257,12 +244,12 @@ fn glue_symbol<'a>(
         return Ok(NagiProgramTokenKind::Symbol(symbol.clone()));
     }
 
-    Err(TokenizeError::UnmatchToken {
-        position: *token_pos,
+    Err(TokenStreamParseError::UnmatchToken {
+        position: token.token_pos,
     })
 }
 
-fn match_token<T, F>(iter: &mut Peekable<Iter<'_, Token>>, list: &[T], condition: F) -> bool
+fn match_token<'a, T, F>(iter: &mut ParseIter<'a>, list: &[T], condition: F) -> bool
 where
     F: Fn(&Token, &T) -> bool,
 {
@@ -286,8 +273,8 @@ where
 
 /// 数値と文字列と_が続くトークンをすべて接着
 fn glue_text_with_underscore<'a>(
-    iter: &mut Peekable<Iter<'_, Token>>,
-) -> Result<String, TokenizeError<'a>> {
+    iter: &mut ParseIter<'a>,
+) -> Result<String, TokenStreamParseError> {
     let num_text: String = from_fn(|| {
         iter.next_if(|t| {
             matches!(
@@ -311,18 +298,14 @@ fn glue_text_with_underscore<'a>(
 
 /// 0始まりのトークンを解析
 fn eat_literal_with_prefix<'a>(
-    iter: &mut Peekable<Iter<'_, Token>>,
+    iter: &mut Peekable<Iter<'a, Token<'a>>>,
     signed: bool,
-) -> Result<NagiProgramTokenKind, TokenizeError<'a>> {
-    let Some(Token {
-        token_kind: TokenKind::Number("0"),
-        ..
-    }) = iter.next()
-    else {
-        unreachable!()
-    };
+) -> Result<NagiProgramTokenKind, TokenStreamParseError> {
+    except_token(iter, |t| t.token_kind == TokenKind::Number("0"))?;
+    iter.next();
+
     let Some(token) = iter.next() else {
-        return Err(TokenizeError::UnexpectedEOF);
+        return Err(TokenStreamParseError::UnexpectedEOF);
     };
 
     match &token.token_kind {
@@ -378,45 +361,39 @@ fn eat_literal_with_prefix<'a>(
 
 /// BIN_LITERAL ::= 0b ( BIN_DIGIT | `_` )*BIN_DIGIT ( BIN_DIGIT | `_` )*
 /// BIN_DIGIT   ::= [0-1]
-fn eat_bin_literal<'a>(iter: &mut Peekable<Iter<'_, Token>>) -> Result<u64, TokenizeError<'a>> {
-    let Some(token) = iter.peek() else {
-        unreachable!()
-    };
-    if !matches!(
-        token.token_kind,
-        TokenKind::Number(_) | TokenKind::Symbol(Symbol::Underscore)
-    ) {
-        unreachable!()
-    }
+fn eat_bin_literal<'a>(iter: &mut ParseIter<'a>) -> Result<u64, TokenStreamParseError> {
+    except_token(iter, |t| {
+        matches!(
+            t.token_kind,
+            TokenKind::Number(_) | TokenKind::Symbol(Symbol::Underscore)
+        )
+    })?;
 
     convert_to_number(iter, 2, |c| matches!(c, '0' | '1'))
 }
 
 /// OCT_LITERAL ::= 0o ( OCT_DIGIT | `_` )*OCT_DIGIT (OCT_DIGIT | `_` )*
 /// OCT_DIGIT   ::= [0-7]
-fn eat_oct_literal<'a>(iter: &mut Peekable<Iter<'_, Token>>) -> Result<u64, TokenizeError<'a>> {
-    let Some(token) = iter.peek() else {
-        unreachable!()
-    };
-    if !matches!(
-        token.token_kind,
-        TokenKind::Number(_) | TokenKind::Symbol(Symbol::Underscore)
-    ) {
-        unreachable!()
-    }
+fn eat_oct_literal<'a>(iter: &mut ParseIter<'a>) -> Result<u64, TokenStreamParseError> {
+    except_token(iter, |t| {
+        matches!(
+            t.token_kind,
+            TokenKind::Number(_) | TokenKind::Symbol(Symbol::Underscore)
+        )
+    })?;
 
     convert_to_number(iter, 8, |c| matches!(c, '0'..='7'))
 }
 
 /// DEC_LITERAL ::= DEC_DIGIT ( DEC_DIGIT | `_` )*
 /// DEC_DIGIT   ::= [0-9]
-fn eat_dec_literal<'a>(iter: &mut Peekable<Iter<'_, Token>>) -> Result<u64, TokenizeError<'a>> {
-    let Some(token) = iter.peek() else {
-        unreachable!()
-    };
-    if !matches!(token.token_kind, TokenKind::Number(_)) {
-        unreachable!()
-    }
+fn eat_dec_literal<'a>(iter: &mut ParseIter<'a>) -> Result<u64, TokenStreamParseError> {
+    except_token(iter, |t| {
+        matches!(
+            t.token_kind,
+            TokenKind::Number(_) | TokenKind::Symbol(Symbol::Underscore)
+        )
+    })?;
 
     convert_to_number(iter, 10, |c| c.is_ascii_digit())
 }
@@ -425,16 +402,13 @@ fn eat_dec_literal<'a>(iter: &mut Peekable<Iter<'_, Token>>) -> Result<u64, Toke
 /// HEX_DIGIT   ::= [0-9a-fA-F]
 ///
 /// 0x は解析済み前提
-fn eat_hex_literal<'a>(iter: &mut Peekable<Iter<'_, Token>>) -> Result<u64, TokenizeError<'a>> {
-    let Some(token) = iter.peek() else {
-        unreachable!()
-    };
-    if !matches!(
-        token.token_kind,
-        TokenKind::Number(_) | TokenKind::Symbol(Symbol::Underscore)
-    ) {
-        unreachable!()
-    }
+fn eat_hex_literal<'a>(iter: &mut ParseIter<'a>) -> Result<u64, TokenStreamParseError> {
+    except_token(iter, |t| {
+        matches!(
+            t.token_kind,
+            TokenKind::Identifier(_) | TokenKind::Number(_) | TokenKind::Symbol(Symbol::Underscore)
+        )
+    })?;
 
     convert_to_number(iter, 16, |c| c.is_ascii_hexdigit())
 }
@@ -444,9 +418,9 @@ fn eat_hex_literal<'a>(iter: &mut Peekable<Iter<'_, Token>>) -> Result<u64, Toke
 ///
 /// 先頭の DEC_LITERAL . は解析済み前提
 fn eat_float_literal<'a>(
-    iter: &mut Peekable<Iter<'_, Token>>,
+    iter: &mut ParseIter<'a>,
     front_dec: u64,
-) -> Result<NagiProgramTokenKind, TokenizeError<'a>> {
+) -> Result<NagiProgramTokenKind, TokenStreamParseError> {
     let Some(token) = iter.next() else {
         return Ok(NagiProgramTokenKind::Literal(NagiLiteral::Float {
             value: front_dec as f64,
@@ -463,7 +437,7 @@ fn eat_float_literal<'a>(
 
     let value = format!("{front_dec}.{}", eat_dec_literal(iter)?)
         .parse()
-        .map_err(|_| TokenizeError::CannotConvertTextToNumbers)?;
+        .map_err(|_| TokenStreamParseError::CannotConvertTextToNumbers)?;
 
     Ok(NagiProgramTokenKind::Literal(NagiLiteral::Float {
         value,
@@ -471,7 +445,7 @@ fn eat_float_literal<'a>(
     }))
 }
 
-fn eat_suffix(iter: &mut Peekable<Iter<'_, Token>>) -> Option<String> {
+fn eat_suffix<'a>(iter: &mut ParseIter<'a>) -> Option<String> {
     iter.next_if(|t| matches!(t.token_kind, TokenKind::Identifier(_)))
         .map(|t| match t.token_kind {
             TokenKind::Identifier(ident) => ident.to_string(),
@@ -479,7 +453,7 @@ fn eat_suffix(iter: &mut Peekable<Iter<'_, Token>>) -> Option<String> {
         })
 }
 
-fn eat_line_comment(iter: &mut Peekable<Iter<'_, Token>>) -> String {
+fn eat_line_comment<'a>(iter: &mut ParseIter<'a>) -> String {
     from_fn(|| {
         iter.next_if(|t| !matches!(t.token_kind, TokenKind::LineBreak(_)))
             .map(|t| match t.token_kind {
@@ -491,18 +465,18 @@ fn eat_line_comment(iter: &mut Peekable<Iter<'_, Token>>) -> String {
 }
 
 fn convert_to_number<'a>(
-    iter: &mut Peekable<Iter<'_, Token>>,
+    iter: &mut ParseIter<'a>,
     radix: u32,
     condition: impl Fn(&char) -> bool,
-) -> Result<u64, TokenizeError<'a>> {
+) -> Result<u64, TokenStreamParseError> {
     let Some(token) = iter.peek() else {
-        return Err(TokenizeError::UnexpectedEOF);
+        return Err(TokenStreamParseError::UnexpectedEOF);
     };
     let token_pos = token.token_pos;
 
     let num_text = glue_text_with_underscore(iter)?;
     if num_text.is_empty() {
-        return Err(TokenizeError::UnmatchToken {
+        return Err(TokenStreamParseError::UnmatchToken {
             position: token_pos,
         });
     }
@@ -512,16 +486,36 @@ fn convert_to_number<'a>(
             continue;
         }
 
-        return Err(TokenizeError::UnusableCharacters {
+        return Err(TokenStreamParseError::UnusableCharacters {
             position: token_pos + pos,
         });
     }
 
     let src: String = num_text.chars().filter(condition).collect();
-    u64::from_str_radix(&src, radix).map_err(|_| TokenizeError::CannotConvertTextToNumbers)
+    u64::from_str_radix(&src, radix).map_err(|_| TokenStreamParseError::CannotConvertTextToNumbers)
 }
 
-fn skip_white_space(iter: &mut Peekable<Iter<'_, Token>>) {
+fn except_token<'a, F>(
+    iter: &mut ParseIter<'a>,
+    condition: F,
+) -> Result<&'a Token<'a>, TokenStreamParseError>
+where
+    F: Fn(&Token) -> bool,
+{
+    let Some(token) = iter.peek() else {
+        return Err(TokenStreamParseError::UnexpectedEOF);
+    };
+
+    if !condition(token) {
+        return Err(TokenStreamParseError::UnexpectedToken {
+            position: token.token_pos,
+        });
+    }
+
+    Ok(*token)
+}
+
+fn skip_white_space<'a>(iter: &mut ParseIter<'a>) {
     while iter
         .next_if(|t| {
             matches!(

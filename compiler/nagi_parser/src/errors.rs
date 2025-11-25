@@ -9,18 +9,10 @@ pub struct ParserError {
 pub(crate) enum ParserErrorKind {}
 
 #[derive(Debug)]
-pub enum TokenizeError<'a> {
-    UnexpectedToken {
-        expect_token: TokenKind<'a>,
-        unexpected_token: TokenKind<'a>,
-        position: usize,
-    },
-    UnmatchToken {
-        position: usize,
-    },
+pub enum TokenStreamParseError {
+    UnexpectedToken { position: usize },
+    UnmatchToken { position: usize },
     UnexpectedEOF,
-    UnusableCharacters {
-        position: usize,
-    },
+    UnusableCharacters { position: usize },
     CannotConvertTextToNumbers,
 }

@@ -1,4 +1,4 @@
-use std::{collections::HashMap, hash::Hash};
+use std::{collections::HashMap, hash::Hash, iter::Peekable};
 
 pub(crate) mod code;
 pub(crate) mod spec;
