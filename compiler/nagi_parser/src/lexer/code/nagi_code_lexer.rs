@@ -284,6 +284,7 @@ fn glue_string_literal<'a>(
     let first = expect_token(iter, |t| {
         matches!(t.token_kind, TokenKind::Symbol(Symbol::DoubleQuotation))
     })?;
+    iter.next();
 
     while iter
         .next_if(|t| !matches!(t.token_kind, TokenKind::Symbol(Symbol::DoubleQuotation)))
@@ -293,6 +294,7 @@ fn glue_string_literal<'a>(
     let end = expect_token(iter, |t| {
         matches!(t.token_kind, TokenKind::Symbol(Symbol::DoubleQuotation))
     })?;
+    iter.next();
 
     Ok(NagiProgramTokenKind::Literal(NagiLiteral::String {
         first: first.token_pos + 1,
