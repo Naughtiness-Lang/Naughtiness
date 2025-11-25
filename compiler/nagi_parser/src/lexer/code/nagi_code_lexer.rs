@@ -320,10 +320,7 @@ where
         }
     }
 
-    for _ in 0..list.len() {
-        iter.next();
-    }
-
+    *iter = clone_iter;
     true
 }
 
