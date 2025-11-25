@@ -16,7 +16,7 @@ impl Display for ParserError {
 }
 
 #[derive(Debug)]
-pub(crate) enum TokenStreamParseError {
+pub enum TokenStreamParseError {
     UnexpectedToken { position: usize },
     UnmatchedToken { position: usize },
     UnexpectedEOF,
@@ -27,6 +27,21 @@ pub(crate) enum TokenStreamParseError {
 
 impl Display for TokenStreamParseError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{self:?}") // エラー内容は別ブランチで対応する
+        match self {
+            TokenStreamParseError::UnexpectedToken { position } => {
+                write!(f, "Unexpected token at position {position}")
+            }
+            TokenStreamParseError::UnmatchedToken { position } => {
+                write!(f, "Unmatched token at position {position}")
+            }
+            TokenStreamParseError::UnexpectedEOF => write!(f, "Unexpected end of file"),
+            TokenStreamParseError::UnusableCharacters { position } => {
+                write!(f, "Unusable characters at position {position}")
+            }
+            TokenStreamParseError::CannotConvertTextToNumbers => {
+                write!(f, "Cannot convert text to numbers")
+            }
+            TokenStreamParseError::NotKeyword => write!(f, "Not a keyword"),
+        }
     }
 }
