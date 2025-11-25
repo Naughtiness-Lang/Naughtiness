@@ -72,6 +72,9 @@ pub(crate) static OPERATOR_PATTERN_MAP: LazyLock<PatternHashMap<Symbol, NagiOper
                 vec![Symbol::GreaterThan, Symbol::GreaterThan, Symbol::Equal],
                 NagiOperator::RightShiftAssign,
             ),
+            //
+            (vec![Symbol::Question], NagiOperator::Question),
+            (vec![Symbol::Dot], NagiOperator::Dot),
         ];
 
         make_pattern_map(list)

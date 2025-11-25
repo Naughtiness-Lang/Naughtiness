@@ -1,13 +1,12 @@
-use nagi_lexer::token::*;
-use std::{
-    iter::{from_fn, Peekable},
-    slice::Iter,
-};
-
 use super::{
     keywords::NagiCodeKeyword, operators::OPERATOR_PATTERN_MAP, symbols::SYMBOL_PATTERN_MAP,
 };
 use crate::{errors::TokenStreamParseError, lexer::Lexer};
+use nagi_lexer::token::{Symbol, Token, TokenKind};
+use std::{
+    iter::{from_fn, Peekable},
+    slice::Iter,
+};
 
 // コード ナギ自体のコード
 #[derive(Debug)]
@@ -81,6 +80,9 @@ pub enum NagiOperator {
     BitwiseXor,
     LeftShift,
     RightShift,
+
+    Question,
+    Dot,
 }
 
 #[derive(Debug, Clone)]
@@ -91,6 +93,8 @@ pub enum NagiSymbol {
     RightBrackets,    // ]
     LeftBrace,        // {
     RightBrace,       // }
+    Semicolon,
+    Comma,
 }
 
 type ParseIter<'a> = Peekable<Iter<'a, Token<'a>>>;
@@ -100,9 +104,17 @@ pub fn tokenize_program(
 ) -> Result<Lexer<NagiProgramToken>, TokenStreamParseError> {
     let mut iter = token_list.iter().peekable();
     let mut token_list = vec![];
-    while let Some(token) = iter.peek() {
+    while iter.peek().is_some() {
+        glue_comment(&mut iter); // 先にコメント処理
+
+        let Some(token) = iter.peek() else {
+            break;
+        };
+
         let position = token.token_pos;
-        match &token.token_kind {
+        let token_kind = &token.token_kind;
+
+        match token_kind {
             TokenKind::Identifier(_) => {
                 token_list.push(NagiProgramToken {
                     token_kind: glue_identifier(&mut iter)?,
@@ -117,7 +129,7 @@ pub fn tokenize_program(
             }
             TokenKind::Symbol(_) => {
                 token_list.push(NagiProgramToken {
-                    token_kind: glue_operator(&mut iter)?,
+                    token_kind: glue_symbol_or_operator(&mut iter)?,
                     position,
                 });
             }
@@ -180,6 +192,24 @@ fn glue_literal<'a>(
     }))
 }
 
+fn glue_symbol_or_operator<'a>(
+    iter: &mut ParseIter<'a>,
+) -> Result<NagiProgramTokenKind, TokenStreamParseError> {
+    let token = except_token(iter, |t| matches!(t.token_kind, TokenKind::Symbol(_)))?;
+
+    if let Ok(token_kind) = glue_symbol(iter) {
+        return Ok(token_kind);
+    }
+
+    if let Ok(token_kind) = glue_operator(iter) {
+        return Ok(token_kind);
+    }
+
+    Err(TokenStreamParseError::UnmatchToken {
+        position: token.token_pos,
+    })
+}
+
 fn glue_operator<'a>(
     iter: &mut ParseIter<'a>,
 ) -> Result<NagiProgramTokenKind, TokenStreamParseError> {
@@ -210,7 +240,9 @@ fn glue_operator<'a>(
         return Ok(NagiProgramTokenKind::Operator(operator.clone()));
     }
 
-    glue_symbol(iter)
+    Err(TokenStreamParseError::UnmatchToken {
+        position: token.token_pos,
+    })
 }
 
 fn glue_symbol<'a>(
@@ -246,6 +278,24 @@ fn glue_symbol<'a>(
     Err(TokenStreamParseError::UnmatchToken {
         position: token.token_pos,
     })
+}
+
+fn glue_comment<'a>(iter: &mut ParseIter<'a>) {
+    let result = match_token(iter, &[Symbol::Slash, Symbol::Slash], |token, symbol| {
+        let TokenKind::Symbol(target_symbol) = &token.token_kind else {
+            return false;
+        };
+
+        target_symbol == symbol
+    });
+
+    if !result {
+        return;
+    }
+
+    // コメントは何もしない
+    // 今は1行コメントのみの対応
+    eat_line_comment(iter);
 }
 
 fn match_token<'a, T, F>(iter: &mut ParseIter<'a>, list: &[T], condition: F) -> bool
@@ -297,7 +347,7 @@ fn glue_text_with_underscore<'a>(
 
 /// 0始まりのトークンを解析
 fn eat_literal_with_prefix<'a>(
-    iter: &mut Peekable<Iter<'a, Token<'a>>>,
+    iter: &mut ParseIter<'a>,
     signed: bool,
 ) -> Result<NagiProgramTokenKind, TokenStreamParseError> {
     except_token(iter, |t| t.token_kind == TokenKind::Number("0"))?;
@@ -457,15 +507,9 @@ fn eat_suffix<'a>(iter: &mut ParseIter<'a>) -> Option<String> {
         })
 }
 
-fn eat_line_comment<'a>(iter: &mut ParseIter<'a>) -> String {
-    from_fn(|| {
-        iter.next_if(|t| !matches!(t.token_kind, TokenKind::LineBreak(_)))
-            .map(|t| match t.token_kind {
-                TokenKind::Identifier(ident) => ident.to_string(),
-                _ => unreachable!(),
-            })
-    })
-    .collect()
+fn eat_line_comment<'a>(iter: &mut ParseIter<'a>) {
+    // 今はcountによるイテレータの消費のみ
+    from_fn(|| iter.next_if(|t| !matches!(t.token_kind, TokenKind::LineBreak(_)))).count();
 }
 
 fn convert_to_number<'a>(

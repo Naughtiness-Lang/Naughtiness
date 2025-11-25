@@ -12,6 +12,8 @@ pub(crate) static SYMBOL_PATTERN_MAP: LazyLock<PatternHashMap<Symbol, NagiSymbol
             (vec![Symbol::RightBrackets], NagiSymbol::RightBrackets),
             (vec![Symbol::LeftParenthesis], NagiSymbol::LeftParenthesis),
             (vec![Symbol::RightParenthesis], NagiSymbol::RightParenthesis),
+            (vec![Symbol::Semicolon], NagiSymbol::Semicolon),
+            (vec![Symbol::Comma], NagiSymbol::Comma),
         ];
 
         make_pattern_map(list)
