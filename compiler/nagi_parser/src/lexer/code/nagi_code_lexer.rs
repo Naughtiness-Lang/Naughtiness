@@ -490,14 +490,10 @@ fn eat_float_literal<'a>(
     iter: &mut ParseIter<'a>,
     front_dec: u64,
 ) -> Result<NagiProgramTokenKind, TokenStreamParseError> {
-    let Some(token) = iter.next() else {
-        return Ok(NagiProgramTokenKind::Literal(NagiLiteral::Float {
-            value: front_dec as f64,
-            suffix: None,
-        }));
-    };
-
-    let TokenKind::Number(_) = token.token_kind else {
+    if iter
+        .next_if(|t| matches!(t.token_kind, TokenKind::Number(_)))
+        .is_none()
+    {
         return Ok(NagiProgramTokenKind::Literal(NagiLiteral::Float {
             value: front_dec as f64,
             suffix: None,
