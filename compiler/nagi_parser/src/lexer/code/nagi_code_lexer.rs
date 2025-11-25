@@ -373,45 +373,59 @@ fn eat_literal_with_prefix<'a>(
             }))
         }
         // 0と記号始まりの場合
-        TokenKind::Symbol(symbol) => match symbol {
-            Symbol::Dot => eat_float_literal(iter, 0),
-            Symbol::Underscore => {
-                let value = eat_dec_literal(iter)?;
-                let suffix = eat_suffix(iter);
-                Ok(NagiProgramTokenKind::Literal(NagiLiteral::Integer {
-                    signed,
-                    value,
-                    suffix,
-                }))
-            }
-            _ => Ok(NagiProgramTokenKind::Literal(NagiLiteral::Integer {
-                signed,
-                value: 0,
-                suffix: None,
-            })),
-        },
-        TokenKind::Identifier(ident) => {
-            let value = match *ident {
-                "b" => eat_bin_literal(iter)?,
-                "o" => eat_oct_literal(iter)?,
-                "x" => eat_hex_literal(iter)?,
-                _ => {
-                    return Ok(NagiProgramTokenKind::Literal(NagiLiteral::Integer {
-                        signed,
-                        value: 0,
-                        suffix: Some(ident.to_string()),
-                    }))
-                }
-            };
+        TokenKind::Symbol(symbol) => eat_literal_with_symbol_prefix(iter, symbol, signed),
+        TokenKind::Identifier(ident) => eat_literal_with_identifier_prefix(iter, ident, signed),
+        TokenKind::Number(_) => unreachable!(),
+    }
+}
 
+fn eat_literal_with_symbol_prefix<'a>(
+    iter: &mut ParseIter<'a>,
+    symbol: &Symbol,
+    signed: bool,
+) -> Result<NagiProgramTokenKind, TokenStreamParseError> {
+    match symbol {
+        Symbol::Dot => eat_float_literal(iter, 0),
+        Symbol::Underscore => {
+            let value = eat_dec_literal(iter)?;
+            let suffix = eat_suffix(iter);
             Ok(NagiProgramTokenKind::Literal(NagiLiteral::Integer {
                 signed,
                 value,
-                suffix: eat_suffix(iter),
+                suffix,
             }))
         }
-        TokenKind::Number(_) => unreachable!(),
+        _ => Ok(NagiProgramTokenKind::Literal(NagiLiteral::Integer {
+            signed,
+            value: 0,
+            suffix: None,
+        })),
     }
+}
+
+fn eat_literal_with_identifier_prefix<'a>(
+    iter: &mut ParseIter<'a>,
+    ident: &str,
+    signed: bool,
+) -> Result<NagiProgramTokenKind, TokenStreamParseError> {
+    let value = match ident {
+        "b" => eat_bin_literal(iter)?,
+        "o" => eat_oct_literal(iter)?,
+        "x" => eat_hex_literal(iter)?,
+        _ => {
+            return Ok(NagiProgramTokenKind::Literal(NagiLiteral::Integer {
+                signed,
+                value: 0,
+                suffix: Some(ident.to_string()),
+            }))
+        }
+    };
+
+    Ok(NagiProgramTokenKind::Literal(NagiLiteral::Integer {
+        signed,
+        value,
+        suffix: eat_suffix(iter),
+    }))
 }
 
 /// BIN_LITERAL ::= 0b ( BIN_DIGIT | "_" )*BIN_DIGIT ( BIN_DIGIT | "_" )*
