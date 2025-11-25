@@ -301,10 +301,15 @@ fn eat_literal_with_prefix<'a>(
     signed: bool,
 ) -> Result<NagiProgramTokenKind, TokenStreamParseError> {
     except_token(iter, |t| t.token_kind == TokenKind::Number("0"))?;
-    iter.next();
+    iter.next(); // 0は確定しているので次のトークンへ
 
+    // 次が終端かつ0のみの場合
     let Some(token) = iter.next() else {
-        return Err(TokenStreamParseError::UnexpectedEOF);
+        return Ok(NagiProgramTokenKind::Literal(NagiLiteral::Integer {
+            signed,
+            value: 0,
+            suffix: None,
+        }));
     };
 
     match &token.token_kind {
