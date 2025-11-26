@@ -5,6 +5,7 @@ use std::fmt;
 pub enum ParserError {
     TokenStreamParse(TokenStreamParseError),
     PackratError(PackratError),
+    EBNFParseError(EBNFParseError),
 }
 
 impl Error for ParserError {}
@@ -14,6 +15,7 @@ impl fmt::Display for ParserError {
         match self {
             ParserError::TokenStreamParse(e) => e.fmt(f),
             ParserError::PackratError(e) => e.fmt(f),
+            ParserError::EBNFParseError(e) => e.fmt(f),
         }
     }
 }
@@ -27,6 +29,12 @@ impl From<TokenStreamParseError> for ParserError {
 impl From<PackratError> for ParserError {
     fn from(value: PackratError) -> Self {
         ParserError::PackratError(value)
+    }
+}
+
+impl From<EBNFParseError> for ParserError {
+    fn from(value: EBNFParseError) -> Self {
+        ParserError::EBNFParseError(value)
     }
 }
 
@@ -64,13 +72,42 @@ impl fmt::Display for TokenStreamParseError {
 #[derive(Debug)]
 pub enum PackratError {
     InvalidState,
-    UnknownRule,
+    UnknownRule(String),
     UnexpectedNode,
     UnexpectedEOF,
 }
 
 impl fmt::Display for PackratError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "")
+    }
+}
+
+#[derive(Debug)]
+pub enum EBNFParseError {
+    UnexpectedToken {
+        expect_token: char,
+        unexpected_token: String,
+        position: usize,
+    },
+    UnmatchToken {
+        current_token: String,
+        position: usize,
+    },
+    UnexpectedEOF,
+    ParseIntError {
+        position: usize,
+    },
+    ParseDefineError {
+        position: usize,
+    },
+    ParseExpansionError {
+        position: usize,
+    },
+}
+
+impl fmt::Display for EBNFParseError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "")
     }
 }
