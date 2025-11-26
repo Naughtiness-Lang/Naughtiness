@@ -1,12 +1,16 @@
 use std::{error::Error, fmt::Display, io};
 
 use nagi_command_option::errors::CommandOptionError;
+use nagi_lexer::errors::TokenizeError;
+use nagi_parser::errors::ParserError;
 
 #[derive(Debug)]
 pub(crate) enum CompileError {
     IO(io::Error),
     WalkDir(walkdir::Error),
     CommandOption(CommandOptionError),
+    TokenizeError(TokenizeError),
+    ParserError(ParserError),
 }
 
 impl Error for CompileError {}
@@ -17,6 +21,8 @@ impl Display for CompileError {
             CompileError::IO(e) => write!(f, "{e}"),
             CompileError::WalkDir(e) => write!(f, "{e}"),
             CompileError::CommandOption(e) => write!(f, "{}", e.message),
+            CompileError::TokenizeError(e) => write!(f, "{e}"),
+            CompileError::ParserError(e) => write!(f, "{e}"),
         }
     }
 }
@@ -36,5 +42,17 @@ impl From<CommandOptionError> for CompileError {
 impl From<walkdir::Error> for CompileError {
     fn from(value: walkdir::Error) -> Self {
         CompileError::WalkDir(value)
+    }
+}
+
+impl From<TokenizeError> for CompileError {
+    fn from(value: TokenizeError) -> Self {
+        CompileError::TokenizeError(value)
+    }
+}
+
+impl From<ParserError> for CompileError {
+    fn from(value: ParserError) -> Self {
+        CompileError::ParserError(value)
     }
 }
