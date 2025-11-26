@@ -20,6 +20,7 @@ pub(crate) struct EBNF<'a> {
     expr: Rc<EBNFNode<'a>>,                          // ツリー構造(ルールの中身)
     state_map: HashMap<EBNFState, Rc<EBNFNode<'a>>>, // ルールの位置(状態)に応じたマップ
     full_state_map: HashMap<EBNFState, EBNFState>,   // 部分的な状態キーから完全な状態へのマップ
+    name_map: HashMap<String, Vec<EBNFState>>,       // ルール名から状態を取得するためのマップ
 }
 
 impl<'a> EBNF<'a> {
@@ -28,8 +29,13 @@ impl<'a> EBNF<'a> {
         let state_list = make_state_pair_list(&expr);
         let mut state_map = HashMap::new();
         let mut full_state_map = HashMap::new();
+        let mut name_map = HashMap::new();
         for (key, value) in state_list {
             let state_key = key & (DEPTH_BIT_MASK | GROUP_BIT_MASK);
+            name_map
+                .entry(get_rule_name(&value))
+                .or_insert(vec![])
+                .push(state_key);
             state_map.insert(state_key, value);
             full_state_map.insert(state_key, key);
         }
@@ -39,6 +45,7 @@ impl<'a> EBNF<'a> {
             expr,
             state_map,
             full_state_map,
+            name_map,
         }
     }
 
@@ -244,5 +251,34 @@ fn get_child_count<'a>(node: &EBNFNode<'a>) -> usize {
         } => 1,
         EBNFNode::Group(_) => 1,
         EBNFNode::Literal(_) => 0,
+    }
+}
+
+pub(crate) fn get_rule_name<'a>(node: &EBNFNode<'a>) -> String {
+    match node {
+        EBNFNode::Expansion(e) => e.to_string(),
+        EBNFNode::Concat(nodes) => nodes
+            .iter()
+            .map(|node| get_rule_name(node))
+            .collect::<Vec<_>>()
+            .join(" "),
+        EBNFNode::Or(nodes) => nodes
+            .iter()
+            .map(|node| get_rule_name(node))
+            .collect::<Vec<_>>()
+            .join(" | "),
+        EBNFNode::Group(node) => format!("( {} )", get_rule_name(node)),
+        EBNFNode::Repeat { node, min, max } => {
+            let rule = get_rule_name(node);
+            match (*min, *max) {
+                (0, None) => format!("{rule}*"),
+                (1, None) => format!("{rule}+"),
+                (0, Some(1)) => format!("{rule}?"),
+                (min, None) => format!("{rule}{{{min},}}"),
+                (min, Some(max)) if min == max => format!("{rule}{{{min}}}"),
+                (min, Some(max)) => format!("{rule}{{{min}, {max}}}"),
+            }
+        }
+        EBNFNode::Literal(l) => format!("\"{l}\""),
     }
 }
