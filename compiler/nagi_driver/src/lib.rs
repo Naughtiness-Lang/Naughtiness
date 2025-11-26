@@ -24,9 +24,8 @@ fn run_compiler() -> Result<(), CompileError> {
     for file in files {
         let source_code = fs::read_to_string(file)?;
 
-        // それぞれ専用のエラー型を作成してからコメントアウトを外す
-        //let token_list = nagi_lexer::tokenize(&source_code)?;
-        //let ast = nagi_parser::parse(&token_list)?;
+        let token_list = nagi_lexer::tokenize(&source_code)?;
+        let ast = nagi_parser::parse_nagi_code(&token_list)?;
     }
 
     Ok(())
