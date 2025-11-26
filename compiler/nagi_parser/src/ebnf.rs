@@ -122,7 +122,8 @@ impl<'a> EBNF<'a> {
         let &full_state = self.full_state_map.get(&state)?;
         let depth = (full_state & DEPTH_BIT_MASK) >> DEPTH_BIT_SHIFT;
         let child_depth_key = (depth + 1) << DEPTH_BIT_SHIFT;
-        let child_group_key = full_state & CHILDREN_GROUP_BIT_MASK;
+        let child_group_number = (full_state & CHILDREN_GROUP_BIT_MASK) >> CHILDREN_GROUP_BIT_SHIFT;
+        let child_group_key = child_group_number << GROUP_BIT_SHIFT;
         let child_state = child_depth_key | child_group_key;
 
         let Some(node) = self.state_map.get(&child_state) else {
