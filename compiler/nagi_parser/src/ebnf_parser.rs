@@ -1,4 +1,5 @@
-use crate::ebnf::*;
+use crate::ebnf::{EBNFNode, Quantifier, EBNF};
+use crate::errors::EBNFParseError;
 use std::iter::from_fn;
 use std::iter::Peekable;
 use std::rc::Rc;
@@ -7,10 +8,11 @@ use std::str::CharIndices;
 type ParserIterator<'a> = Peekable<CharIndices<'a>>;
 
 const EOF: &str = "EOF";
+const LITERAL_QUOTE: char = '`';
 
-pub fn parse_ebnf<'a>(source: &'a str) -> Result<EBNF<'a>, String> {
+pub fn parse_ebnf<'a>(source: &'a str) -> Result<EBNF<'a>, EBNFParseError> {
     let mut iter = source.char_indices().peekable();
-    parse_define(source, &mut iter).map_err(|e| e.error_message(source))
+    parse_define(source, &mut iter)
 }
 
 fn parse_define<'a>(
@@ -94,11 +96,11 @@ fn parse_concat<'a>(
 
     loop {
         skip_space(iter);
-        let Some((_, c)) = iter.peek() else {
+        let Some(&(_, c)) = iter.peek() else {
             break;
         };
 
-        if matches!(c, '"' | '(') || c.is_alphabetic() {
+        if matches!(c, LITERAL_QUOTE | '(') || c.is_alphabetic() {
             nodes.push(parse_repeat(source, iter)?);
         } else {
             break;
@@ -221,7 +223,7 @@ fn parse_primary<'a>(
     };
 
     match c {
-        '"' => parse_literal(source, iter),
+        LITERAL_QUOTE => parse_literal(source, iter),
         '(' => parse_group(source, iter),
         _ if c.is_alphabetic() => parse_expansion(source, iter),
         _ => Err(EBNFParseError::UnmatchToken {
@@ -274,30 +276,32 @@ fn parse_expansion<'a>(
         });
     }
 
-    let name = parse_and_slice(source, iter, |c| c.is_alphabetic() || c.is_ascii_digit())?;
+    let name = parse_and_slice(source, iter, |c| {
+        c.is_alphabetic() || c.is_ascii_digit() || c == '_'
+    })?;
 
     Ok(EBNFNode::Expansion(name))
 }
 
-// Literal ::= "\"" { any-char-except-quote } "\"" ;
+// Literal ::= "`" { any-char-except-quote } "`" ;
 fn parse_literal<'a>(
     source: &'a str,
     iter: &mut ParserIterator,
 ) -> Result<EBNFNode<'a>, EBNFParseError> {
     skip_space(iter);
-    if iter.next_if(|c| matches!(c.1, '"')).is_none() {
+    if iter.next_if(|c| matches!(c.1, LITERAL_QUOTE)).is_none() {
         return Err(EBNFParseError::UnexpectedToken {
-            expect_token: '"',
+            expect_token: LITERAL_QUOTE,
             unexpected_token: get_token(iter),
             position: get_position(iter, source.len()),
         });
     }
 
-    let literal = parse_and_slice(source, iter, |c| !matches!(c, '"'))?;
+    let literal = parse_and_slice(source, iter, |c| !matches!(c, LITERAL_QUOTE))?;
 
-    if iter.next_if(|c| matches!(c.1, '"')).is_none() {
+    if iter.next_if(|c| matches!(c.1, LITERAL_QUOTE)).is_none() {
         return Err(EBNFParseError::UnexpectedToken {
-            expect_token: '"',
+            expect_token: LITERAL_QUOTE,
             unexpected_token: get_token(iter),
             position: get_position(iter, source.len()),
         });
@@ -359,29 +363,6 @@ fn get_token(iter: &mut ParserIterator) -> String {
 
 fn get_position(iter: &mut ParserIterator, source_len: usize) -> usize {
     iter.peek().map_or(source_len, |c| c.0)
-}
-
-#[derive(Debug)]
-enum EBNFParseError {
-    UnexpectedToken {
-        expect_token: char,
-        unexpected_token: String,
-        position: usize,
-    },
-    UnmatchToken {
-        current_token: String,
-        position: usize,
-    },
-    UnexpectedEOF,
-    ParseIntError {
-        position: usize,
-    },
-    ParseDefineError {
-        position: usize,
-    },
-    ParseExpansionError {
-        position: usize,
-    },
 }
 
 impl EBNFParseError {
