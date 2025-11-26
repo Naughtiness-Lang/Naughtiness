@@ -110,6 +110,7 @@ impl<'a> EBNF<'a> {
         }
 
         let next_state = depth_key | next_group_key;
+        println!("{:?}: {next_state}", self.name);
 
         Some(next_state)
     }
@@ -126,9 +127,12 @@ impl<'a> EBNF<'a> {
         let child_group_key = child_group_number << GROUP_BIT_SHIFT;
         let child_state = child_depth_key | child_group_key;
 
-        let Some(node) = self.state_map.get(&child_state) else {
+        let node = self.get_node(&state)?;
+        if get_child_count(node) == 0 {
             return self.step_over(state); // 子がいない場合はstep_overと同じ
-        };
+        }
+
+        let node = self.state_map.get(&child_state)?;
 
         Some((node, child_state))
     }
