@@ -1,5 +1,5 @@
 use std::error::Error;
-use std::fmt;
+use std::fmt::{self, write};
 
 #[derive(Debug)]
 pub enum ParserError {
@@ -13,9 +13,9 @@ impl Error for ParserError {}
 impl fmt::Display for ParserError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ParserError::TokenStreamParse(e) => e.fmt(f),
-            ParserError::PackratError(e) => e.fmt(f),
-            ParserError::EBNFParseError(e) => e.fmt(f),
+            ParserError::TokenStreamParse(e) => write!(f, "{e:?}"),
+            ParserError::PackratError(e) => write!(f, "{e:?}"),
+            ParserError::EBNFParseError(e) => write!(f, "{e:?}"),
         }
     }
 }
@@ -46,6 +46,10 @@ pub enum TokenStreamParseError {
     UnusableCharacters { position: usize },
     CannotConvertTextToNumbers { position: usize },
     NotKeyword,
+    NotOperator,
+    NotSymbol,
+    NotLiteral,
+    MutexLockError,
 }
 
 impl fmt::Display for TokenStreamParseError {
@@ -65,22 +69,42 @@ impl fmt::Display for TokenStreamParseError {
                 write!(f, "Cannot convert text to numbers. position: {position}")
             }
             TokenStreamParseError::NotKeyword => write!(f, "Not a keyword"),
+            TokenStreamParseError::NotSymbol => write!(f, "Not a symbol"),
+            TokenStreamParseError::NotLiteral => write!(f, "Not a literal"),
+            TokenStreamParseError::NotOperator => write!(f, "Not a operator"),
+            TokenStreamParseError::MutexLockError => write!(f, "Can not lock"),
         }
     }
 }
 
+// パーサー自体のエラー
 #[derive(Debug)]
 pub enum PackratError {
     InvalidState,
     UnknownRule(String),
     UnexpectedNode,
     UnexpectedEOF,
+    FailedConstructAST,
+    FailedParseRule(EBNFParseError),
 }
 
 impl fmt::Display for PackratError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "")
+        match slef {}
     }
+}
+
+impl From<EBNFParseError> for PackratError {
+    fn from(value: EBNFParseError) -> Self {
+        PackratError::FailedParseRule(value)
+    }
+}
+
+// 解析中のエラー
+#[derive(Debug)]
+pub enum ParsingError {
+    UnexpectedToken, //
+    UnexpectedLiteral,
 }
 
 #[derive(Debug)]
@@ -108,6 +132,22 @@ pub enum EBNFParseError {
 
 impl fmt::Display for EBNFParseError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "")
+        match self {
+            EBNFParseError::UnexpectedToken {
+                expect_token,
+                unexpected_token,
+                position,
+            } => {
+                write!(f, "except token: {expect_token} unexpected token: {unexpected_token} position: {position}")
+            }
+            EBNFParseError::UnexpectedEOF => write!(f, "unexpected EOF"),
+            EBNFParseError::UnmatchToken {
+                current_token,
+                position,
+            } => write!(f, "token: {current_token} position: {position}"),
+            EBNFParseError::ParseIntError { position } => write!(f, "position: {position}"),
+            EBNFParseError::ParseExpansionError { position } => write!(f, "position: {position}"),
+            EBNFParseError::ParseDefineError { position } => write!(f, "position: {position}"),
+        }
     }
 }
