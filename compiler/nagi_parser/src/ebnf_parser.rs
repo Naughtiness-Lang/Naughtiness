@@ -7,8 +7,8 @@ use std::str::CharIndices;
 
 type ParserIterator<'a> = Peekable<CharIndices<'a>>;
 
+pub(crate) const LITERAL_QUOTE: char = '`';
 const EOF: &str = "EOF";
-const LITERAL_QUOTE: char = '`';
 
 pub fn parse_ebnf<'a>(source: &'a str) -> Result<EBNF<'a>, EBNFParseError> {
     let mut iter = source.char_indices().peekable();
@@ -29,7 +29,9 @@ fn parse_define<'a>(
         });
     }
 
-    let name = parse_and_slice(source, iter, |c| c.is_alphabetic() || c.is_ascii_digit())?;
+    let name = parse_and_slice(source, iter, |c| {
+        c.is_alphabetic() || c.is_ascii_digit() || c == '_'
+    })?;
 
     skip_space(iter);
     for expected_char in "::=".chars() {
