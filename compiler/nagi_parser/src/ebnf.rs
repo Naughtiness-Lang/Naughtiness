@@ -14,7 +14,7 @@ pub(crate) struct EBNFState {
 }
 
 impl EBNFState {
-    fn make_state_key(depth: EBNFStateKey, group: EBNFStateKey) -> Self {
+    fn new_key(depth: EBNFStateKey, group: EBNFStateKey) -> Self {
         Self {
             depth,
             group,
@@ -33,7 +33,7 @@ impl EBNFState {
     }
 
     pub fn root() -> Self {
-        Self::make_state_key(0, 0)
+        Self::new_key(0, 0)
     }
 }
 
@@ -49,7 +49,7 @@ pub(crate) struct EBNF<'a> {
 impl<'a> EBNF<'a> {
     pub fn new(name: &'a str, expr: EBNFNode<'a>) -> Self {
         let expr = Rc::new(expr);
-        let state_list = make_state_key_pair_list(&expr);
+        let state_list = build_state_map(&expr);
         let mut state_map = HashMap::new();
         let mut full_state_map = HashMap::new();
         let mut name_map = HashMap::new();
@@ -77,83 +77,86 @@ impl<'a> EBNF<'a> {
     }
 
     pub fn root(&self) -> EBNFState {
-        EBNFState::make_state_key(0, 0)
+        EBNFState::new_key(0, 0)
     }
 
-    // 親ノードに移動
-    pub fn parent(&self, state: EBNFState) -> Option<EBNFState> {
-        let full_state = EBNFState::from(*self.full_state_map.get(&state)?);
+    /// 親ノードに移動
+    pub fn parent(&self, state: EBNFState) -> Option<(&EBNFNode<'a>, EBNFState)> {
+        let full_state = self.full_state(state)?;
         if full_state.depth == 0 {
             return None;
         }
-        let parent_state = EBNFState::make_state_key(full_state.depth - 1, full_state.parent_group);
-        Some(parent_state)
+
+        let parent_state = EBNFState::new_key(full_state.depth - 1, full_state.parent_group);
+        let parent_node = self.get_node(&parent_state)?;
+
+        Some((parent_node, parent_state))
     }
 
-    // 隣のノードへ移動
-    // 同じグループの末端であれば親ノードの隣のノードへ
-    // その親が末端であればさらにその親を見ていく
-    pub fn next_group(&self, state: EBNFState) -> Option<EBNFState> {
-        let full_state = EBNFState::from(*self.full_state_map.get(&state)?);
+    /// 隣のノードへ移動
+    /// 所属しているグループの末端であればNoneを返す
+    pub fn next_group(&self, state: EBNFState) -> Option<(&EBNFNode<'a>, EBNFState)> {
+        let full_state = self.full_state(state)?;
         let next_group = full_state.group + 1;
+        let next_state = EBNFState::new_key(full_state.depth, next_group);
+        let next_node = self.get_node(&next_state)?;
 
-        // 単純に1加算した値が次のグループかを判断できないので
-        // 親を参照し親のデータから次のグループに移動するかを判断する
-        let Some(parent_state) = self.parent(state) else {
-            // 親はいないが次のグループが存在する場合
-            let next_state = EBNFState::make_state_key(full_state.depth, next_group);
-            return if self.state_map.contains_key(&next_state) {
-                Some(next_state)
-            } else {
-                None
-            };
+        // 親がいない=ルートノード(所属グループは1つ)なので
+        // 別グループの所属かどうかのチェックは不要
+        let Some(parent) = self.parent(state) else {
+            return Some((next_node, next_state));
         };
 
-        // 次のグループがない場合親ノードへ
-        let parent_state = EBNFState::from(parent_state);
-        let full_parent_state = EBNFState::from(*self.full_state_map.get(&parent_state)?);
-        let parent_node = self.state_map.get(&parent_state)?;
-        let count = get_child_count(parent_node) as u16;
-        let group_limit = full_parent_state.children_group + count;
-        if group_limit < next_group + 1 {
-            // グループが存在しない場合はさらに親を見る
-            return self.next_group(parent_state);
+        // 親が次のノードを保有していない場合は別グループ
+        if !has_child(parent.0, next_node) {
+            return None;
         }
 
-        Some(EBNFState::make_state_key(full_state.depth, next_group))
-    }
-
-    // 子のノードに移動する
-    // 子ノードがなければ同グループの隣のノードへ
-    // グループの末端かつ子ノードがなければ親ノードへ
-    pub fn step_in(&self, state: EBNFState) -> Option<(&EBNFNode<'a>, EBNFState)> {
-        let full_state = EBNFState::from(*self.full_state_map.get(&state)?);
-        let child_state =
-            EBNFState::make_state_key(full_state.depth + 1, full_state.children_group);
-        let node = self.get_node(&state)?;
-        if get_child_count(node) == 0 {
-            return self.step_over(state); // 子がいない場合はstep_overと同じ
-        }
-        let child_state = child_state.to_state_key();
-        let node = self.state_map.get(&child_state)?;
-
-        Some((node, child_state))
-    }
-
-    // 親ノードの隣のノードへ移動
-    pub fn step_out(&self, state: EBNFState) -> Option<(&EBNFNode<'a>, EBNFState)> {
-        let parent_state = self.parent(state)?;
-        let parent_next_state = self.next_group(parent_state)?;
-        let parent_next_node = self.get_node(&parent_next_state)?;
-        Some((parent_next_node, parent_next_state))
-    }
-
-    // 同じグループ内の隣のノードへ
-    // 同じグループの末端であれば親ノードの隣へ
-    pub fn step_over(&self, state: EBNFState) -> Option<(&EBNFNode<'a>, EBNFState)> {
-        let next_state = self.next_group(state)?;
-        let next_node = self.get_node(&next_state)?;
         Some((next_node, next_state))
+    }
+
+    /// 子のノードに移動する
+    /// 子ノードがなければ同グループの隣のノードへ
+    /// グループの末端かつ子ノードがなければ親ノードへ
+    pub fn step_in(&self, state: EBNFState) -> Option<(&EBNFNode<'a>, EBNFState)> {
+        let full_state = self.full_state(state)?;
+        let self_node = self.get_node(&state)?;
+        let child_state = EBNFState::new_key(full_state.depth + 1, full_state.children_group);
+
+        // 子がいない場合はstep_overと同じ
+        let Some(child_node) = self.get_node(&child_state) else {
+            return self.step_over(state);
+        };
+        if !has_child(self_node, child_node) {
+            return self.step_over(state);
+        }
+
+        Some((child_node, child_state))
+    }
+
+    /// 親ノードの隣のノードへ移動
+    pub fn step_out(&self, state: EBNFState) -> Option<(&EBNFNode<'a>, EBNFState)> {
+        let parent = self.parent(state)?; // 親へ移動
+        if let Some(parent_next) = self.next_group(parent.1) {
+            return Some(parent_next);
+        }
+        self.step_out(parent.1)
+    }
+
+    /// 同じグループ内の隣のノードへ
+    /// 同じグループの末端であれば親ノードの隣へ
+    pub fn step_over(&self, state: EBNFState) -> Option<(&EBNFNode<'a>, EBNFState)> {
+        if let Some(next_state) = self.next_group(state) {
+            return Some(next_state);
+        }
+
+        // 親へ移動
+        let parent = self.parent(state)?;
+        self.step_over(parent.1)
+    }
+
+    fn full_state(&self, state: EBNFState) -> Option<EBNFState> {
+        Some(*self.full_state_map.get(&state)?)
     }
 }
 
@@ -180,7 +183,7 @@ pub(crate) enum Quantifier {
     Braces(u64, Option<u64>), // {
 }
 
-fn make_state_key_pair_list<'a>(expr: &Rc<EBNFNode<'a>>) -> Vec<(EBNFState, Rc<EBNFNode<'a>>)> {
+fn build_state_map<'a>(expr: &Rc<EBNFNode<'a>>) -> Vec<(EBNFState, Rc<EBNFNode<'a>>)> {
     let mut group_count_map = HashMap::new();
     let mut vec = vec![];
     let mut stack = vec![(expr.clone(), 0, 0)];
@@ -256,18 +259,20 @@ fn make_state_key_pair_list<'a>(expr: &Rc<EBNFNode<'a>>) -> Vec<(EBNFState, Rc<E
     vec.into_iter().collect()
 }
 
-fn get_child_count<'a>(node: &EBNFNode<'a>) -> usize {
-    match node {
-        EBNFNode::Expansion(_) => 0,
-        EBNFNode::Or(nodes) => nodes.len(),
-        EBNFNode::Concat(nodes) => nodes.len(),
+fn has_child<'a>(parent: &EBNFNode<'a>, child: &EBNFNode<'a>) -> bool {
+    match parent {
+        EBNFNode::Expansion(_) | EBNFNode::Literal(_) => false,
+        EBNFNode::Or(nodes) | EBNFNode::Concat(nodes) => nodes
+            .iter()
+            .map(|node| &**node)
+            .collect::<Vec<_>>()
+            .contains(&child),
         EBNFNode::Repeat {
-            node: _,
+            node,
             min: _,
             max: _,
-        } => 1,
-        EBNFNode::Group(_) => 1,
-        EBNFNode::Literal(_) => 0,
+        } => &**node == child,
+        EBNFNode::Group(node) => &**node == child,
     }
 }
 
