@@ -262,11 +262,7 @@ fn build_state_map<'a>(expr: &Rc<EBNFNode<'a>>) -> Vec<(EBNFState, Rc<EBNFNode<'
 fn has_child<'a>(parent: &EBNFNode<'a>, child: &EBNFNode<'a>) -> bool {
     match parent {
         EBNFNode::Expansion(_) | EBNFNode::Literal(_) => false,
-        EBNFNode::Or(nodes) | EBNFNode::Concat(nodes) => nodes
-            .iter()
-            .map(|node| &**node)
-            .collect::<Vec<_>>()
-            .contains(&child),
+        EBNFNode::Or(nodes) | EBNFNode::Concat(nodes) => nodes.iter().any(|node| &**node == child),
         EBNFNode::Repeat {
             node,
             min: _,
