@@ -5,14 +5,15 @@ use crate::{
     errors::TokenStreamParseError,
     lexer::{Lexer, PatternHashMap},
 };
-use nagi_lexer::token::{self, Symbol, Token, TokenKind};
+use nagi_lexer::token::{Symbol, Token, TokenKind};
 use std::{
+    collections::HashMap,
+    hash::Hash,
     iter::{from_fn, Peekable},
     slice::Iter,
     str::FromStr,
+    sync::OnceLock,
 };
-
-// コード ナギ自体のコード
 #[derive(Debug)]
 pub struct NagiProgramToken {
     pub token_kind: NagiProgramTokenKind,
@@ -41,7 +42,7 @@ pub enum NagiLiteral {
     String { first: usize, end: usize },
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum NagiOperator {
     Add,
     Sub,
@@ -83,7 +84,55 @@ pub enum NagiOperator {
     Dot,
 }
 
-#[derive(Debug, Clone)]
+pub(crate) type CacheMap<V> = HashMap<String, V>;
+pub(crate) type TokenCache<V> = OnceLock<CacheMap<V>>;
+
+static OPERATOR_CACHE: TokenCache<NagiOperator> = OnceLock::new();
+
+fn make_cache_map<K, V>(pattern_map: &PatternHashMap<K, V>) -> CacheMap<V>
+where
+    K: TryFrom<char> + Eq + Hash,
+    V: Clone,
+{
+    let convert_map = ('\u{0}'..='\u{FF}')
+        .filter_map(|c| Some((K::try_from(c).ok()?, c)))
+        .collect::<HashMap<K, char>>();
+
+    // パターンマップをもとに自動生成する
+    pattern_map
+        .values()
+        .flat_map(|vec| {
+            vec.iter()
+                .map(|(pattern, nagi_op)| {
+                    (
+                        pattern
+                            .iter()
+                            .map(|s| convert_map.get(s).unwrap())
+                            .collect::<String>(),
+                        nagi_op.clone(),
+                    )
+                })
+                .collect::<Vec<_>>()
+        })
+        .collect()
+}
+
+fn get_operator_map() -> &'static CacheMap<NagiOperator> {
+    OPERATOR_CACHE.get_or_init(|| make_cache_map(&OPERATOR_PATTERN_MAP))
+}
+
+impl FromStr for NagiOperator {
+    type Err = TokenStreamParseError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        get_operator_map()
+            .get(s)
+            .cloned()
+            .ok_or(TokenStreamParseError::NotOperator)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum NagiSymbol {
     LeftParenthesis,  // (
     RightParenthesis, // )
@@ -93,6 +142,23 @@ pub enum NagiSymbol {
     RightBrace,       // }
     Semicolon,
     Comma,
+}
+
+static SYMBOL_CACHE: TokenCache<NagiSymbol> = OnceLock::new();
+
+fn get_symbol_map() -> &'static CacheMap<NagiSymbol> {
+    SYMBOL_CACHE.get_or_init(|| make_cache_map(&SYMBOL_PATTERN_MAP))
+}
+
+impl FromStr for NagiSymbol {
+    type Err = TokenStreamParseError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        get_symbol_map()
+            .get(s)
+            .cloned()
+            .ok_or(TokenStreamParseError::NotSymbol)
+    }
 }
 
 type ParseIter<'a> = Peekable<Iter<'a, Token<'a>>>;
