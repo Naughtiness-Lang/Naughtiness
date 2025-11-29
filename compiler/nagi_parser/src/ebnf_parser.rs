@@ -352,7 +352,7 @@ fn parse_and_slice<'a>(
         });
     }
 
-    Ok(&source[start..end])
+    source.get(start..end).ok_or(EBNFParseError::CaoNotSlice)
 }
 
 fn skip_space(iter: &mut ParserIterator) {

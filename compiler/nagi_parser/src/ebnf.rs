@@ -7,14 +7,14 @@ pub type EBNFStateKey = u16;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub(crate) struct EBNFState {
-    depth: u16,
-    group: u16,
-    parent_group: u16,
-    children_group: u16,
+    depth: u16,          // 深さ
+    group: u16,          // 自身の所属するグループ番号
+    parent_group: u16,   // 親の所属するグループ番号
+    children_group: u16, // 子の所属するグループ番号
 }
 
 impl EBNFState {
-    fn new_key(depth: EBNFStateKey, group: EBNFStateKey) -> Self {
+    fn new(depth: EBNFStateKey, group: EBNFStateKey) -> Self {
         Self {
             depth,
             group,
@@ -23,7 +23,7 @@ impl EBNFState {
         }
     }
 
-    fn to_state_key(&self) -> EBNFState {
+    fn to_key(&self) -> EBNFState {
         Self {
             depth: self.depth,
             group: self.group,
@@ -33,7 +33,7 @@ impl EBNFState {
     }
 
     pub fn root() -> Self {
-        Self::new_key(0, 0)
+        Self::new(0, 0)
     }
 }
 
@@ -54,7 +54,7 @@ impl<'a> EBNF<'a> {
         let mut full_state_map = HashMap::new();
         let mut name_map = HashMap::new();
         for (full_state, value) in state_list {
-            let state_key = full_state.to_state_key();
+            let state_key = full_state.to_key();
             name_map
                 .entry(get_rule_name(&value))
                 .or_insert(vec![])
@@ -76,8 +76,8 @@ impl<'a> EBNF<'a> {
         self.state_map.get(state).map(|node| &**node)
     }
 
-    pub fn root(&self) -> EBNFState {
-        EBNFState::new_key(0, 0)
+    pub fn root(&self) -> Option<&EBNFNode<'a>> {
+        self.get_node(&EBNFState::root())
     }
 
     /// 親ノードに移動
@@ -87,7 +87,7 @@ impl<'a> EBNF<'a> {
             return None;
         }
 
-        let parent_state = EBNFState::new_key(full_state.depth - 1, full_state.parent_group);
+        let parent_state = EBNFState::new(full_state.depth - 1, full_state.parent_group);
         let parent_node = self.get_node(&parent_state)?;
 
         Some((parent_node, parent_state))
@@ -98,7 +98,7 @@ impl<'a> EBNF<'a> {
     pub fn next_group(&self, state: EBNFState) -> Option<(&EBNFNode<'a>, EBNFState)> {
         let full_state = self.full_state(state)?;
         let next_group = full_state.group + 1;
-        let next_state = EBNFState::new_key(full_state.depth, next_group);
+        let next_state = EBNFState::new(full_state.depth, next_group);
         let next_node = self.get_node(&next_state)?;
 
         // 親がいない=ルートノード(所属グループは1つ)なので
@@ -121,7 +121,7 @@ impl<'a> EBNF<'a> {
     pub fn step_in(&self, state: EBNFState) -> Option<(&EBNFNode<'a>, EBNFState)> {
         let full_state = self.full_state(state)?;
         let self_node = self.get_node(&state)?;
-        let child_state = EBNFState::new_key(full_state.depth + 1, full_state.children_group);
+        let child_state = EBNFState::new(full_state.depth + 1, full_state.children_group);
 
         // 子がいない場合はstep_overと同じ
         let Some(child_node) = self.get_node(&child_state) else {
