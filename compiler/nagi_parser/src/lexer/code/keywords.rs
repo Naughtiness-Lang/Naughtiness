@@ -2,7 +2,7 @@ use std::str::FromStr;
 
 use crate::errors::TokenStreamParseError;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub(crate) enum NagiCodeKeyword {
     Fn,
     Let,
