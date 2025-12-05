@@ -72,6 +72,10 @@ impl<'a> EBNF<'a> {
         }
     }
 
+    pub fn get_node_name(&self, state: &EBNFState) -> String {
+        get_rule_name(self.get_node(state).unwrap_or(&self.expr))
+    }
+
     pub fn get_node(&self, state: &EBNFState) -> Option<&EBNFNode<'a>> {
         self.state_map.get(state).map(|node| &**node)
     }
